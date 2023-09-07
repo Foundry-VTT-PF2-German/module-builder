@@ -1,0 +1,13 @@
+{
+    "id": "adventure-extractor",
+    "title": "Abenteuer extrahieren",
+    "description": "Extraktion von Abenteuern als JSON",
+    "authors": [{ "name": "Abaddon" }],
+    "version": "1.0",
+    "compatibility": {
+        "minimum": "11.308",
+        "verified": "11.308",
+        "maximum": "11.999"
+    },
+    "esmodules": ["src/extract-adventure-packs.js"]
+}
