@@ -15,7 +15,7 @@ replaceProperties(CONFIG.mappings, ["subMapping"], CONFIG.mappings);
 // replaceProperties(CONFIG.packs, ["mapping"], CONFIG.mappings);
 // replaceProperties(CONFIG.packs, ["savePath"], CONFIG.filePaths.packs);
 
-// Read available adventure cirectories
+// Read available adventure directories
 const adventureDirectories = readdirSync(CONFIG.filePaths.adventures);
 adventureDirectories.forEach((adventureDirectory) => {
     const adventurePack = JSON.parse(
