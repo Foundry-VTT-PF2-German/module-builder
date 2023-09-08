@@ -24,17 +24,17 @@ async function extractAdventures() {
         const pack = game.packs.get(`${extractedAdventure}.adventures`);
         await pack.getDocuments();
 
-        for (const adventure of pack.contents) {
-            // Create a destination directory for extraction
-            let i = 1;
-            const path = `modules/adventure-extractor/adventures/${extractedAdventure}-${i}`;
-            // Extract the adventure
-            await FilePicker.createDirectory("data", path).catch((err) => {});
-            const lf = _createFile(JSON.stringify(adventure.toObject(), null, 2), `${extractedAdventure}.json`);
-            await FilePicker.upload("data", path, lf, {}, { notify: false });
+        // Create a destination directory for extraction
+        const path = `modules/adventure-extractor/adventures/${extractedAdventure}`;
+        // Extract the adventure
+        await FilePicker.createDirectory("data", path).catch((err) => {});
+        const lf = _createFile(JSON.stringify(pack.contents, null, 2), `${extractedAdventure}.json`);
+        await FilePicker.upload("data", path, lf, {}, { notify: false });
 
-            // Extract journal pages as html documents
-            await FilePicker.createDirectory("data", `${path}/html`).catch((err) => {});
+        // Extract journal pages as html documents
+        await FilePicker.createDirectory("data", `${path}/html`).catch((err) => {});
+        pack.contents.forEach(async (adventure, index) => {
+            await FilePicker.createDirectory("data", `${path}/html/${index}`).catch((err) => {});
             for (const entry of adventure.data.journal) {
                 for (const page of entry.pages) {
                     if (!page.text.content?.trim()) continue;
@@ -43,11 +43,10 @@ async function extractAdventures() {
                         `${page.id}-${page.name.slugify({ strict: true })}.html`,
                         "text/html"
                     );
-                    await FilePicker.upload("data", `${path}/html`, hf, {}, { notify: false });
+                    await FilePicker.upload("data", `${path}/html/${index}`, hf, {}, { notify: false });
                 }
             }
-            i = i + 1;
-        }
+        });
     });
 }
 
