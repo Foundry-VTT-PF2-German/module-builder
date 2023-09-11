@@ -4,6 +4,7 @@ import { extractPack } from "./helper/src/pack-extractor/pack-extractor.js";
 import { PF2_DEFAULT_MAPPING } from "./helper/src/pack-extractor/constants.js";
 import { ADVENTURE_CONFIG } from "../adventure-config.js";
 import { spawn } from "child_process";
+import { copyDirectory, deleteFolderRecursive } from "./helper/src/util/fileHandler.js";
 
 // Replace linked mappings and savePaths with actual data
 replaceProperties(PF2_DEFAULT_MAPPING, ["subMapping"], PF2_DEFAULT_MAPPING);
@@ -14,20 +15,18 @@ const adventureDirectories = readdirSync(ADVENTURE_CONFIG.extractionFolder);
 // Loop through configured adventures and extract data if available
 ADVENTURE_CONFIG.adventureModules.forEach((adventureModule) => {
     if (adventureDirectories.includes(adventureModule.moduleId)) {
-        const adventurePack = JSON.parse(
-            readFileSync(
-                `${ADVENTURE_CONFIG.extractionFolder}/${adventureModule.moduleId}/${adventureModule.moduleId}.json`
-            )
-        );
+        // Initialize directory and file paths
+        const extractionPath = `${ADVENTURE_CONFIG.extractionFolder}/${adventureModule.moduleId}`;
+        const xliffPath = adventureModule.savePaths.xliffTranslation;
+        const journalPath = `${adventureModule.savePaths.journalTranslation}/${adventureModule.moduleId}`;
+        const jsonFile = `${adventureModule.moduleId}-en.json`;
+        const xliffFile = `${adventureModule.moduleId}.xliff`;
+
+        const adventurePack = JSON.parse(readFileSync(`${extractionPath}/${adventureModule.moduleId}.json`));
 
         // Extract the data
         console.warn("-----------------------------------");
         const extractedPackData = extractPack(adventureModule.moduleId, adventurePack, PF2_DEFAULT_MAPPING.adventure);
-
-        // Initialize directory and file paths
-        const xliffPath = adventureModule.savePaths.xliffTranslation;
-        const jsonFile = `${adventureModule.moduleId}-en.json`;
-        const xliffFile = `${adventureModule.moduleId}.xliff`;
 
         writeFileSync(`${xliffPath}/${jsonFile}`, JSON.stringify(extractedPackData.extractedPack, null, 2));
 
@@ -72,8 +71,11 @@ ADVENTURE_CONFIG.adventureModules.forEach((adventureModule) => {
             console.log(stderr);
         });
 
+        // Cleanup html save location before copying the new files
+        deleteFolderRecursive(journalPath);
+        copyDirectory(`${extractionPath}/html`, journalPath);
+
         // Copy html journal files to localization directory
-        // TODO
     } else {
         console.warn(`No extracted pack found for ${adventureModule.moduleId}.`);
     }
