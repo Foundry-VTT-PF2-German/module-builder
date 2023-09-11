@@ -74,8 +74,6 @@ ADVENTURE_CONFIG.adventureModules.forEach((adventureModule) => {
         // Cleanup html save location before copying the new files
         deleteFolderRecursive(journalPath);
         copyDirectory(`${extractionPath}/html`, journalPath);
-
-        // Copy html journal files to localization directory
     } else {
         console.warn(`No extracted pack found for ${adventureModule.moduleId}.`);
     }
