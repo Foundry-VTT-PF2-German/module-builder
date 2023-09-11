@@ -6,6 +6,7 @@
         "path-value": "^0.9.5"
     },
     "scripts": {
+        "build-module-data": "node ./src/build-module-data.js",
         "extract-localization-data": "node ./src/extract-localization-data.js"
     },
     "type": "module"

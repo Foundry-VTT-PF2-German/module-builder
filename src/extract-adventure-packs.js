@@ -1,4 +1,5 @@
 import { ADVENTURE_CONFIG } from "../adventure-config.js";
+import { sluggify } from "./helper/src/util/utilities.js";
 
 /**
  * A reference to the module.
@@ -42,7 +43,7 @@ async function extractAdventures() {
                         if (!page.text.content?.trim()) continue;
                         const hf = _createFile(
                             page.text.content,
-                            `${page.id}-${page.name.slugify({ strict: true })}.html`,
+                            `${page.id}-${sluggify(page.name)}.html`,
                             "text/html"
                         );
                         await FilePicker.upload("data", `${path}/html/${adventure.name}`, hf, {}, { notify: false });
