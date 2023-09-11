@@ -18,7 +18,7 @@ ADVENTURE_CONFIG.adventureModules.forEach((adventureModule) => {
         // Initialize directory and file paths
         const extractionPath = `${ADVENTURE_CONFIG.extractionFolder}/${adventureModule.moduleId}`;
         const xliffPath = adventureModule.savePaths.xliffTranslation;
-        const journalPath = `${adventureModule.savePaths.journalTranslation}/${adventureModule.moduleId}`;
+        const journalPath = `${adventureModule.savePaths.extractedJournals}/${adventureModule.moduleId}`;
         const jsonFile = `${adventureModule.moduleId}-en.json`;
         const xliffFile = `${adventureModule.moduleId}.xliff`;
 
