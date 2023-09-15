@@ -1,6 +1,7 @@
 export const ADVENTURE_CONFIG = {
     extractionFolder: "./adventures",
     xliffScript: "C:/Users/marco/OneDrive/Dokumente/GitHub/lang-de-pf2e/tools/xliff-tool.py",
+    zipURL: "https://github.com/foundryvtt/pf2e/releases/latest/download/json-assets.zip",
     adventureModules: [
         {
             moduleId: "pf2e-ap178-180-outlaws-of-alkenstar",
@@ -55,4 +56,10 @@ export const ADVENTURE_CONFIG = {
             },
         },
     ],
+    itemDatabase: {
+        fields: ["name"],
+        packs: {
+            equipment: "pf2e.equipment-srd",
+        },
+    },
 };

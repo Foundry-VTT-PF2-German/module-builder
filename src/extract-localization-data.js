@@ -1,10 +1,16 @@
 import { copyFileSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import { replaceProperties } from "./helper/src/util/utilities.js";
-import { extractPack } from "./helper/src/pack-extractor/pack-extractor.js";
+import { buildItemDatabase, extractPack } from "./helper/src/pack-extractor/pack-extractor.js";
 import { PF2_DEFAULT_MAPPING } from "./helper/src/pack-extractor/constants.js";
 import { ADVENTURE_CONFIG } from "../adventure-config.js";
 import { spawn } from "child_process";
-import { copyDirectory, deleteFolderRecursive } from "./helper/src/util/fileHandler.js";
+import { copyDirectory, getZipContentFromURL, deleteFolderRecursive } from "./helper/src/util/fileHandler.js";
+
+// Fetch assets from current pf2 release and get zip contents
+const packs = await getZipContentFromURL(ADVENTURE_CONFIG.zipURL);
+
+// Build item database in order to compare actor items with their comdendium entries
+const itemDatabase = buildItemDatabase(packs, ADVENTURE_CONFIG.itemDatabase);
 
 // Replace linked mappings and savePaths with actual data
 replaceProperties(PF2_DEFAULT_MAPPING, ["subMapping"], PF2_DEFAULT_MAPPING);
@@ -26,7 +32,7 @@ ADVENTURE_CONFIG.adventureModules.forEach((adventureModule) => {
 
         // Extract the data
         console.warn("-----------------------------------");
-        const extractedPackData = extractPack(adventureModule.moduleId, adventurePack, PF2_DEFAULT_MAPPING.adventure);
+        const extractedPackData = extractPack(adventureModule.moduleId, adventurePack, PF2_DEFAULT_MAPPING.adventure, itemDatabase);
 
         writeFileSync(`${xliffPath}/${jsonFile}`, JSON.stringify(extractedPackData.extractedPack, null, 2));
 
