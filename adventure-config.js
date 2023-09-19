@@ -23,9 +23,9 @@ export const ADVENTURE_CONFIG = {
                 xliffTranslation:
                     "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Gesetzlose von Alkenstern",
                 moduleCompendium:
-                    "C:/Users/marco/OneDrive/Dokumente/RPG/FoundryVTT/Data/modules/pf2e-ooa-localization-test/compendium",
+                    "C:/Users/marco/OneDrive/Dokumente/RPG/FoundryVTT/Data/modules/pf2e-outlaws-of-alkenstar-german/compendium",
                 bestiaryCompendiums:
-                    "C:/Users/marco/OneDrive/Dokumente/RPG/FoundryVTT/Data/modules/pf2e-ooa-localization-test/compendium/actors",
+                    "C:/Users/marco/OneDrive/Dokumente/RPG/FoundryVTT/Data/modules/pf2e-outlaws-of-alkenstar-german/compendium/actors",
             },
         },
         {
@@ -40,7 +40,7 @@ export const ADVENTURE_CONFIG = {
                 xliffTranslation:
                     "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Gesetzlose von Alkenstern",
                 moduleCompendium:
-                    "C:/Users/marco/OneDrive/Dokumente/RPG/FoundryVTT/Data/modules/pf2e-ooa-localization-test/compendium",
+                    "C:/Users/marco/OneDrive/Dokumente/RPG/FoundryVTT/Data/modules/pf2e-outlaws-of-alkenstar-german/compendium",
             },
         },
         {
@@ -55,7 +55,7 @@ export const ADVENTURE_CONFIG = {
                 xliffTranslation:
                     "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Gesetzlose von Alkenstern",
                 moduleCompendium:
-                    "C:/Users/marco/OneDrive/Dokumente/RPG/FoundryVTT/Data/modules/pf2e-ooa-localization-test/compendium",
+                    "C:/Users/marco/OneDrive/Dokumente/RPG/FoundryVTT/Data/modules/pf2e-outlaws-of-alkenstar-german/compendium",
             },
         },
         {
@@ -70,7 +70,7 @@ export const ADVENTURE_CONFIG = {
                 xliffTranslation:
                     "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Gesetzlose von Alkenstern",
                 moduleCompendium:
-                    "C:/Users/marco/OneDrive/Dokumente/RPG/FoundryVTT/Data/modules/pf2e-ooa-localization-test/compendium",
+                    "C:/Users/marco/OneDrive/Dokumente/RPG/FoundryVTT/Data/modules/pf2e-outlaws-of-alkenstar-german/compendium",
             },
         },
     ],
