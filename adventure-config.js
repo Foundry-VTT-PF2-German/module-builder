@@ -6,6 +6,8 @@ export const ADVENTURE_CONFIG = {
         {
             moduleId: "pf2e-ap178-180-outlaws-of-alkenstar",
             savePaths: {
+                bestiarySources:
+                    "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Gesetzlose von Alkenstern",
                 extractedJournals:
                     "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Gesetzlose von Alkenstern/Journal-Einträge/source",
                 localizedJournals:
@@ -19,6 +21,8 @@ export const ADVENTURE_CONFIG = {
         {
             moduleId: "pf2e-ap178-punks-in-a-powderkeg",
             savePaths: {
+                bestiarySources:
+                    "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Gesetzlose von Alkenstern",
                 extractedJournals:
                     "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Gesetzlose von Alkenstern/Journal-Einträge/source",
                 localizedJournals:
@@ -32,6 +36,8 @@ export const ADVENTURE_CONFIG = {
         {
             moduleId: "pf2e-ap179-cradle-of-quartz",
             savePaths: {
+                bestiarySources:
+                    "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Gesetzlose von Alkenstern",
                 extractedJournals:
                     "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Gesetzlose von Alkenstern/Journal-Einträge/source",
                 localizedJournals:
@@ -45,6 +51,8 @@ export const ADVENTURE_CONFIG = {
         {
             moduleId: "pf2e-ap180-the-smoking-gun",
             savePaths: {
+                bestiarySources:
+                    "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Gesetzlose von Alkenstern",
                 extractedJournals:
                     "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Gesetzlose von Alkenstern/Journal-Einträge/source",
                 localizedJournals:
