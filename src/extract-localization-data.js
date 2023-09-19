@@ -1,4 +1,4 @@
-import { copyFileSync, readdirSync, readFileSync, writeFile, writeFileSync } from "fs";
+import { copyFileSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import { replaceProperties } from "./helper/src/util/utilities.js";
 import { buildItemDatabase, extractPack } from "./helper/src/pack-extractor/pack-extractor.js";
 import { PF2_DEFAULT_MAPPING } from "./helper/src/pack-extractor/constants.js";
@@ -12,6 +12,9 @@ const packs = await getZipContentFromURL(ADVENTURE_CONFIG.zipURL);
 
 // Build item database in order to compare actor items with their comdendium entries
 const itemDatabase = buildItemDatabase(packs, ADVENTURE_CONFIG.itemDatabase);
+
+// Build actor database in order to connect actor id to actor name
+const actorDatabase = buildItemDatabase(packs, ADVENTURE_CONFIG.actorDatabase);
 
 // Replace linked mappings and savePaths with actual data
 replaceProperties(PF2_DEFAULT_MAPPING, ["subMapping"], PF2_DEFAULT_MAPPING);
@@ -91,32 +94,40 @@ ADVENTURE_CONFIG.adventureModules.forEach((adventureModule) => {
         deleteFolderRecursive(journalPath);
         copyDirectory(`${extractionPath}/html`, journalPath);
 
-        // Build dictionary for adventure actor sources
-        adventureActorDictionary[bestiarySourcePath] = adventureActorDictionary[bestiarySourcePath] || {};
-        adventurePack.forEach((adventure) => {
-            adventure.actors.forEach((actor) => {
-                if (
-                    resolvePath(actor, "flags.core.sourceId").exists &&
-                    actor.flags.core.sourceId.startsWith("Compendium.pf2e")
-                ) {
-                    // Initialize compendium entry if neccessary
-                    const sourceIdComponents = actor.flags.core.sourceId.split(".");
-                    adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] =
-                        adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] || [];
-                    adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]].push(sourceIdComponents[4]);
-                }
+        // Build dictionary for adventure actor sources if save location is specified
+        if (bestiarySourcePath) {
+            adventureActorDictionary[bestiarySourcePath] = adventureActorDictionary[bestiarySourcePath] || {};
+            adventurePack.forEach((adventure) => {
+                adventure.actors.forEach((actor) => {
+                    if (
+                        resolvePath(actor, "flags.core.sourceId").exists &&
+                        actor.flags.core.sourceId.startsWith("Compendium.pf2e")
+                    ) {
+                        // Initialize compendium entry if neccessary
+                        const sourceIdComponents = actor.flags.core.sourceId.split(".");
+                        adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] =
+                            adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] || [];
+                        const actorName = actorDatabase[actor.flags.core.sourceId]?.name;
+                        if (actorName) {
+                            adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]].push(actorName);
+                        }
+                    }
+                });
             });
-        });
+        }
     } else {
         console.warn(`No extracted pack found for ${adventureModule.moduleId}.`);
     }
 });
 
-// Remove duplicates from adventure actor sources and save the dictionary to the specified locations
+// Remove duplicates and empty compendium entries from adventure actor sources and save the dictionary to the specified locations
 Object.keys(adventureActorDictionary).forEach((savePath) => {
     const dictionary = {};
     Object.keys(adventureActorDictionary[savePath]).forEach((compendium) => {
-        dictionary[compendium] = [...new Set(adventureActorDictionary[savePath][compendium].sort())];
-        writeFileSync(`${savePath}/actorSources.json`, JSON.stringify(dictionary, null, 2));
+        const sortedEntries = [...new Set(adventureActorDictionary[savePath][compendium].sort())];
+        if (sortedEntries.length > 0) {
+            dictionary[compendium] = sortedEntries;
+        }
     });
+    writeFileSync(savePath, JSON.stringify(dictionary, null, 2));
 });
