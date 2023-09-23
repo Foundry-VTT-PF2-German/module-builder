@@ -73,6 +73,15 @@ export const ADVENTURE_CONFIG = {
                     "C:/Users/marco/OneDrive/Dokumente/RPG/FoundryVTT/Data/modules/pf2e-outlaws-of-alkenstar-german/compendium",
             },
         },
+        {
+            moduleId: "pf2e-zda",
+            savePaths: {
+                bestiarySources:
+                    "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Zeit der Asche/bestiarySources.json",
+                bestiaryCompendiums:
+                    "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Zeit der Asche/fertiges Kompendium/actors",
+            },
+        },
     ],
     actorDatabase: {
         fields: ["name"],

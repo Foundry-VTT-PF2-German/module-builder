@@ -37,7 +37,7 @@ async function extractAdventures() {
             // Extract journal pages as html documents
             await FilePicker.createDirectory("data", `${path}/html`).catch((err) => {});
             pack.contents.forEach(async (adventure) => {
-                await FilePicker.createDirectory("data", `${path}/html/${adventure.name}`).catch((err) => {});
+                await FilePicker.createDirectory("data", `${path}/html/${sluggify(adventure.name)}`).catch((err) => {});
                 for (const entry of adventure.data.journal) {
                     for (const page of entry.pages) {
                         if (!page.text.content?.trim()) continue;
@@ -46,7 +46,13 @@ async function extractAdventures() {
                             `${page.id}-${sluggify(page.name)}.html`,
                             "text/html"
                         );
-                        await FilePicker.upload("data", `${path}/html/${adventure.name}`, hf, {}, { notify: false });
+                        await FilePicker.upload(
+                            "data",
+                            `${path}/html/${sluggify(adventure.name)}`,
+                            hf,
+                            {},
+                            { notify: false }
+                        );
                     }
                 }
             });

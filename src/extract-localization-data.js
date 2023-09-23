@@ -1,10 +1,15 @@
-import { copyFileSync, readdirSync, readFileSync, writeFileSync } from "fs";
+import { copyFileSync, readdirSync, readFileSync } from "fs";
 import { replaceProperties } from "./helper/src/util/utilities.js";
 import { buildItemDatabase, extractPack } from "./helper/src/pack-extractor/pack-extractor.js";
 import { PF2_DEFAULT_MAPPING } from "./helper/src/pack-extractor/constants.js";
 import { ADVENTURE_CONFIG } from "../adventure-config.js";
 import { spawn } from "child_process";
-import { copyDirectory, getZipContentFromURL, deleteFolderRecursive } from "./helper/src/util/fileHandler.js";
+import {
+    copyDirectory,
+    getZipContentFromURL,
+    deleteFolderRecursive,
+    saveFileWithDirectories,
+} from "./helper/src/util/fileHandler.js";
 import { resolvePath } from "path-value";
 
 // Fetch assets from current pf2 release and get zip contents
@@ -32,67 +37,74 @@ ADVENTURE_CONFIG.adventureModules.forEach((adventureModule) => {
         const extractionPath = `${ADVENTURE_CONFIG.extractionFolder}/${adventureModule.moduleId}`;
         const xliffPath = adventureModule.savePaths.xliffTranslation;
         const journalPath = `${adventureModule.savePaths.extractedJournals}/${adventureModule.moduleId}`;
+        const bestiarySourcePath = adventureModule.savePaths.bestiarySources;
         const jsonFile = `${adventureModule.moduleId}-en.json`;
         const xliffFile = `${adventureModule.moduleId}.xliff`;
-        const bestiarySourcePath = adventureModule.savePaths.bestiarySources;
 
         const adventurePack = JSON.parse(readFileSync(`${extractionPath}/${adventureModule.moduleId}.json`));
 
         // Extract the data
-        console.warn("-----------------------------------");
-        const extractedPackData = extractPack(
-            adventureModule.moduleId,
-            adventurePack,
-            PF2_DEFAULT_MAPPING.adventure,
-            itemDatabase
-        );
-
-        writeFileSync(`${xliffPath}/${jsonFile}`, JSON.stringify(extractedPackData.extractedPack, null, 2));
-
-        // Run the Python xliff tool
-        let script = "";
-
-        // If the xliff file already exists, make a backup and update the xliff
-        if (readdirSync(xliffPath).includes(xliffFile)) {
-            console.warn("  - Creating backup and updating xliff file");
-            script = [
-                ADVENTURE_CONFIG.xliffScript,
-                `${xliffPath}/${xliffFile}`,
-                "update-from",
-                "--tree",
-                `${xliffPath}/${jsonFile}`,
-            ];
-
-            // Make backup of the current xliff
-            copyFileSync(
-                `${xliffPath}/${xliffFile}`,
-                `${xliffPath}/${xliffFile}`.replace(".xliff", "-sicherung.xliff")
+        if (xliffPath) {
+            console.warn("-----------------------------------");
+            const extractedPackData = extractPack(
+                adventureModule.moduleId,
+                adventurePack,
+                PF2_DEFAULT_MAPPING.adventure,
+                itemDatabase
             );
 
-            // Create xliff file if not existing
-        } else {
-            console.warn("  - Creating xliff file");
-            script = [
-                ADVENTURE_CONFIG.xliffScript,
-                `${xliffPath}/${xliffFile}`,
-                "create",
-                "-s",
-                "EN",
-                "-t",
-                "DE",
-                "--source-json",
+            saveFileWithDirectories(
                 `${xliffPath}/${jsonFile}`,
-                "--tree",
-            ];
+                JSON.stringify(extractedPackData.extractedPack, null, 2)
+            );
+
+            // Run the Python xliff tool
+            let script = "";
+
+            // If the xliff file already exists, make a backup and update the xliff
+            if (readdirSync(xliffPath).includes(xliffFile)) {
+                console.warn("  - Creating backup and updating xliff file");
+                script = [
+                    ADVENTURE_CONFIG.xliffScript,
+                    `${xliffPath}/${xliffFile}`,
+                    "update-from",
+                    "--tree",
+                    `${xliffPath}/${jsonFile}`,
+                ];
+
+                // Make backup of the current xliff
+                copyFileSync(
+                    `${xliffPath}/${xliffFile}`,
+                    `${xliffPath}/${xliffFile}`.replace(".xliff", "-sicherung.xliff")
+                );
+
+                // Create xliff file if not existing
+            } else {
+                console.warn("  - Creating xliff file");
+                script = [
+                    ADVENTURE_CONFIG.xliffScript,
+                    `${xliffPath}/${xliffFile}`,
+                    "create",
+                    "-s",
+                    "EN",
+                    "-t",
+                    "DE",
+                    "--source-json",
+                    `${xliffPath}/${jsonFile}`,
+                    "--tree",
+                ];
+            }
+            const pyProg = spawn("python", script);
+            pyProg.stderr.on("data", (stderr) => {
+                console.log(stderr);
+            });
         }
-        const pyProg = spawn("python", script);
-        pyProg.stderr.on("data", (stderr) => {
-            console.log(stderr);
-        });
 
         // Cleanup html save location before copying the new files
-        deleteFolderRecursive(journalPath);
-        copyDirectory(`${extractionPath}/html`, journalPath);
+        if (journalPath) {
+            deleteFolderRecursive(journalPath);
+            copyDirectory(`${extractionPath}/html`, journalPath);
+        }
 
         // Build dictionary for adventure actor sources if save location is specified
         if (bestiarySourcePath) {
@@ -105,6 +117,12 @@ ADVENTURE_CONFIG.adventureModules.forEach((adventureModule) => {
                     ) {
                         // Initialize compendium entry if neccessary
                         const sourceIdComponents = actor.flags.core.sourceId.split(".");
+                        // Add Actor to sourceId link for old link notation
+                        if (sourceIdComponents.length === 4) {
+                            actor.flags.core.sourceId = `Compendium.pf2e.${sourceIdComponents[2]}.Actor.${sourceIdComponents[3]}`;
+                        }
+                        adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] =
+                            adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] || [];
                         adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] =
                             adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] || [];
                         const actorName = actorDatabase[actor.flags.core.sourceId]?.name;
@@ -129,5 +147,5 @@ Object.keys(adventureActorDictionary).forEach((savePath) => {
             dictionary[compendium] = sortedEntries;
         }
     });
-    writeFileSync(savePath, JSON.stringify(dictionary, null, 2));
+    saveFileWithDirectories(savePath, JSON.stringify(dictionary, null, 2));
 });
