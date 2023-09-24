@@ -1,5 +1,4 @@
 export const ADVENTURE_CONFIG = {
-    extractionFolder: "./adventures",
     xliffScript: "C:/Users/marco/OneDrive/Dokumente/GitHub/lang-de-pf2e/tools/xliff-tool.py",
     zipURL: "https://github.com/foundryvtt/pf2e/releases/latest/download/json-assets.zip",
     bestiaryPaths: {
@@ -13,6 +12,8 @@ export const ADVENTURE_CONFIG = {
     adventureModules: [
         {
             moduleId: "pf2e-ap178-180-outlaws-of-alkenstar",
+            modulePath: "C:/Users/marco/OneDrive/Dokumente/RPG/FoundryVTT/Data/modules",
+            adventurePacks: [{ name: "adventures", path: "packs/adventures" }],
             savePaths: {
                 bestiarySources:
                     "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Gesetzlose von Alkenstern/bestiarySources.json",
@@ -30,6 +31,8 @@ export const ADVENTURE_CONFIG = {
         },
         {
             moduleId: "pf2e-ap178-punks-in-a-powderkeg",
+            modulePath: "C:/Users/marco/OneDrive/Dokumente/RPG/FoundryVTT/Data/modules",
+            adventurePacks: [{ name: "adventures", path: "packs/adventures" }],
             savePaths: {
                 bestiarySources:
                     "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Gesetzlose von Alkenstern/bestiarySources.json",
@@ -45,6 +48,8 @@ export const ADVENTURE_CONFIG = {
         },
         {
             moduleId: "pf2e-ap179-cradle-of-quartz",
+            modulePath: "C:/Users/marco/OneDrive/Dokumente/RPG/FoundryVTT/Data/modules",
+            adventurePacks: [{ name: "adventures", path: "packs/adventures" }],
             savePaths: {
                 bestiarySources:
                     "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Gesetzlose von Alkenstern/bestiarySources.json",
@@ -60,6 +65,8 @@ export const ADVENTURE_CONFIG = {
         },
         {
             moduleId: "pf2e-ap180-the-smoking-gun",
+            modulePath: "C:/Users/marco/OneDrive/Dokumente/RPG/FoundryVTT/Data/modules",
+            adventurePacks: [{ name: "adventures", path: "packs/adventures" }],
             savePaths: {
                 bestiarySources:
                     "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Gesetzlose von Alkenstern/bestiarySources.json",
@@ -75,6 +82,8 @@ export const ADVENTURE_CONFIG = {
         },
         {
             moduleId: "pf2e-zda",
+            modulePath: "C:/Users/marco/OneDrive/Dokumente/RPG/FoundryVTT/Data/modules",
+            adventurePacks: [{ name: "adventures", path: "packs/adventures" }],
             savePaths: {
                 bestiarySources:
                     "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Zeit der Asche/bestiarySources.json",
