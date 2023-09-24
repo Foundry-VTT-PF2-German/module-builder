@@ -68,12 +68,16 @@ for (const adventureModule of ADVENTURE_CONFIG.adventureModules) {
         }
 
         // Initialize directory and file paths
+        const bestiarySourcePath = adventureModule.savePaths.bestiarySources;
         const journalPath = adventureModule.savePaths.extractedJournals
             ? `${adventureModule.savePaths.extractedJournals}/${adventureModule.moduleId}`
             : undefined;
-        const bestiarySourcePath = adventureModule.savePaths.bestiarySources;
-        const jsonFile = `${adventureModule.savePaths.xliffTranslation}/${adventureModule.moduleId}-en.json`;
-        const xliffFile = `${adventureModule.savePaths.xliffTranslation}/${adventureModule.moduleId}.xliff`;
+        const jsonFile = adventureModule.savePaths.xliffTranslation
+            ? `${adventureModule.savePaths.xliffTranslation}/${adventureModule.moduleId}-en.json`
+            : undefined;
+        const xliffFile = adventureModule.savePaths.xliffTranslation
+            ? `${adventureModule.savePaths.xliffTranslation}/${adventureModule.moduleId}.xliff`
+            : undefined;
 
         // Get compendium data from levelDB and extract required data
         const { packData: sourcePack } = await getJSONfromPack(packPath);
