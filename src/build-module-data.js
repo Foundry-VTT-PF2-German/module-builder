@@ -34,7 +34,7 @@ ADVENTURE_CONFIG.adventureModules.forEach((adventureModule) => {
             if (resolvePath(adventures, "entries").exists) {
                 Object.keys(adventures.entries).forEach((entryKey) => {
                     const adventure = adventures.entries[entryKey];
-                    if (existsSync(`${localizedJournalPath}/${entryKey}`)) {
+                    if (existsSync(`${localizedJournalPath}/${sluggify(entryKey)}`)) {
                         if (resolvePath(adventure, "journal").exists) {
                             Object.keys(adventure.journal).forEach((journalKey) => {
                                 const journal = adventure.journal[journalKey];
