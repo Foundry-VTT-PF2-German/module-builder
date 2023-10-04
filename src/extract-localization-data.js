@@ -1,12 +1,12 @@
-import { copyFileSync, existsSync } from "fs";
-import { deletePropertyByPath, replaceProperties, sluggify } from "./helper/src/util/utilities.js";
+import { existsSync, readFileSync } from "fs";
+import { deletePropertyByPath, flattenObject, replaceProperties, sluggify } from "./helper/src/util/utilities.js";
 import { buildItemDatabase, extractPack } from "./helper/src/pack-extractor/pack-extractor.js";
 import { PF2_DEFAULT_MAPPING } from "./helper/src/pack-extractor/constants.js";
 import { ADVENTURE_CONFIG } from "../adventure-config.js";
-import { spawn } from "child_process";
 import { getZipContentFromURL, deleteFolderRecursive, saveFileWithDirectories } from "./helper/src/util/fileHandler.js";
 import { resolvePath } from "path-value";
 import { getJSONfromPack } from "./helper/src/util/level-db.js";
+import { jsonToXliff, updateXliff } from "./helper/src/util/xliff-tool.js";
 
 // Fetch assets from current pf2 release and get zip contents
 const packs = await getZipContentFromURL(ADVENTURE_CONFIG.zipURL);
@@ -101,12 +101,21 @@ for (const adventureModule of ADVENTURE_CONFIG.adventureModules) {
 
         // Save extracted JSON and create/update xliff file
         if (xliffFile) {
-            saveFileWithDirectories(jsonFile, JSON.stringify(extractedPackData.extractedPack, null, 2));
-            runXliffTool(jsonFile, xliffFile);
+            saveFileWithDirectories(jsonFile, JSON.stringify(extractedPackData.extractedPack, null, 4));
+            let target = "";
+            if (existsSync(xliffFile)) {
+                const xliff = readFileSync(xliffFile, "utf-8");
+                saveFileWithDirectories(xliffFile.replace(".xliff", "-sicherung.xliff"), xliff);
+                target = updateXliff(xliff, flattenObject(extractedPackData.extractedPack));
+            } else {
+                target = jsonToXliff(flattenObject(extractedPackData.extractedPack));
+            }
+            saveFileWithDirectories(xliffFile, target);
         }
 
         // Build dictionary for adventure actor sources if save location is specified
-        if (bestiarySourcePath) {
+        // Ignore locked sourceFiles in config - those files are built manually and are only used during module build
+        if (bestiarySourcePath && !bestiarySourcePath.includes(".locked.")) {
             adventureActorDictionary[bestiarySourcePath] = adventureActorDictionary[bestiarySourcePath] || {};
             sourcePack.forEach((adventure) => {
                 adventure.actors.forEach((actor) => {
@@ -146,28 +155,6 @@ Object.keys(adventureActorDictionary).forEach((savePath) => {
     });
     saveFileWithDirectories(savePath, JSON.stringify(dictionary, null, 2));
 });
-
-function runXliffTool(jsonFile, xliffFile) {
-    let script = "";
-
-    // If the xliff file already exists, make a backup and update the xliff
-    if (existsSync(xliffFile)) {
-        console.warn("Creating backup and updating xliff file");
-        script = [xliffTool, xliffFile, "update-from", "--tree", jsonFile];
-
-        // Make backup of the current xliff
-        copyFileSync(xliffFile, xliffFile.replace(".xliff", "-sicherung.xliff"));
-
-        // Create xliff file if not existing
-    } else {
-        console.warn("Creating xliff file");
-        script = [xliffTool, xliffFile, "create", "-s", "EN", "-t", "DE", "--source-json", jsonFile, "--tree"];
-    }
-    const pyProg = spawn("python", script);
-    pyProg.stderr.on("data", (stderr) => {
-        console.log(stderr);
-    });
-}
 
 function extractJournalPages(adventures, savePath) {
     const noTextPages = [];
