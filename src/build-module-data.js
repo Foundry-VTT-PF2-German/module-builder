@@ -96,7 +96,7 @@ ADVENTURE_CONFIG.adventureModules.forEach((adventureModule) => {
                 // Save the required localized data to the configured destination
                 saveFileWithDirectories(
                     `${bestiaryCompendiumsPath}/${bestiarySource}/${moduleFileName.fileName}.${moduleFileName.fileType}`,
-                    JSON.stringify(extractedBestiaryData, null, 2)
+                    JSON.stringify(extractedBestiaryData, null, 4)
                 );
             }
         });
