@@ -91,6 +91,17 @@ export const ADVENTURE_CONFIG = {
                     "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Zeit der Asche/fertiges Kompendium/actors",
             },
         },
+        {
+            moduleId: "pf2e-beginner-box",
+            modulePath: "C:/Users/marco/OneDrive/Dokumente/RPG/FoundryVTT/Data/modules",
+            adventurePacks: [{ name: "adventures", path: "packs/adventures" }],
+            savePaths: {
+                bestiarySources:
+                    "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Einsteigerbox/bestiarySources.locked.json",
+                bestiaryCompendiums:
+                    "C:/Users/marco/OneDrive/Dokumente/RPG/Pathfinder - Arbeit/Abenteuer/Einsteigerbox/fertiges Kompendium/actors",
+            },
+        },
     ],
     actorDatabase: {
         fields: ["name"],

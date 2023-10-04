@@ -1,9 +1,9 @@
 import { existsSync, readdirSync, readFileSync } from "fs";
 import { resolvePath } from "path-value";
 import { ADVENTURE_CONFIG } from "../adventure-config.js";
-import { spawnSync } from "child_process";
-import { sluggify } from "./helper/src/util/utilities.js";
+import { sluggify, unflattenObject } from "./helper/src/util/utilities.js";
 import { parsePath, saveFileWithDirectories } from "./helper/src/util/fileHandler.js";
+import { xliffToJson } from "./helper/src/util/xliff-tool.js";
 
 // Get the paths to the bestiary json files
 const bestiaryModulePaths = ADVENTURE_CONFIG.bestiaryPaths;
@@ -26,15 +26,8 @@ ADVENTURE_CONFIG.adventureModules.forEach((adventureModule) => {
     if (moduleCompendiumPath) {
         if (existsSync(`${xliffPath}/${xliffFile}`)) {
             // Create localized adventure json from xliff
-            const script = [
-                ADVENTURE_CONFIG.xliffScript,
-                `${xliffPath}/${xliffFile}`,
-                "export-to",
-                `${moduleCompendiumPath}/${localizedJsonFile}`,
-                "--tree",
-                "-i",
-            ];
-            spawnSync("python", script);
+            const source = unflattenObject(xliffToJson(readFileSync(`${xliffPath}/${xliffFile}`, "utf-8")));
+            saveFileWithDirectories(`${moduleCompendiumPath}/${localizedJsonFile}`, JSON.stringify(source, null, 4));
 
             // Find journal entry pages within the created json files and insert the localized html data
             const adventures = JSON.parse(readFileSync(`${moduleCompendiumPath}/${localizedJsonFile}`));
