@@ -11,9 +11,6 @@ import { jsonToXliff, updateXliff } from "./helper/src/util/xliff-tool.js";
 // Fetch assets from current pf2 release and get zip contents
 const packs = await getZipContentFromURL(ADVENTURE_CONFIG.zipURL);
 
-// Get the path to the xliff tool
-const xliffTool = ADVENTURE_CONFIG.xliffScript;
-
 // Build item database in order to compare actor items with their comdendium entries
 const itemDatabase = buildItemDatabase(packs, ADVENTURE_CONFIG.itemDatabase);
 
@@ -67,6 +64,9 @@ for (const adventureModule of ADVENTURE_CONFIG.adventureModules) {
             continue;
         }
 
+        // Check if xliff should get backuped
+        const xliffBackup = adventureModule.xliffBackup ? adventureModule.xliffBackup : false;
+
         // Initialize directory and file paths
         const bestiarySourcePath = adventureModule.savePaths.bestiarySources;
         const journalPath = adventureModule.savePaths.extractedJournals
@@ -105,7 +105,9 @@ for (const adventureModule of ADVENTURE_CONFIG.adventureModules) {
             let target = "";
             if (existsSync(xliffFile)) {
                 const xliff = readFileSync(xliffFile, "utf-8");
-                saveFileWithDirectories(xliffFile.replace(".xliff", "-sicherung.xliff"), xliff);
+                if (xliffBackup) {
+                    saveFileWithDirectories(xliffFile.replace(".xliff", "-backup.xliff"), xliff);
+                }
                 target = updateXliff(xliff, flattenObject(extractedPackData.extractedPack));
             } else {
                 target = jsonToXliff(flattenObject(extractedPackData.extractedPack));
