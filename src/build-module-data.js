@@ -16,6 +16,7 @@ ADVENTURE_CONFIG.adventureModules.forEach((adventureModule) => {
     const localizedJournalPath = `${adventureModule.savePaths.localizedJournals}/${adventureModule.moduleId}`;
     const bestiarySourcePath = adventureModule.savePaths.bestiarySources;
     const bestiaryCompendiumsPath = adventureModule.savePaths.bestiaryCompendiums;
+    const htmlModifications = adventureModule.htmlModifications;
     const localizedJsonFile = `${adventureModule.moduleId}.adventures.json`;
     const xliffFile = `${adventureModule.moduleId}.xliff`;
 
@@ -41,20 +42,40 @@ ADVENTURE_CONFIG.adventureModules.forEach((adventureModule) => {
                                 if (resolvePath(journal, "pages").exists) {
                                     Object.keys(journal.pages).forEach((pageKey) => {
                                         const page = journal.pages[pageKey];
-                                        const journalFileName = `${page.id}-${sluggify(pageKey)}.html`;
-                                        if (
-                                            readdirSync(`${localizedJournalPath}/${sluggify(entryKey)}`).includes(
-                                                journalFileName
-                                            )
-                                        ) {
-                                            const journalFile = readFileSync(
-                                                `${localizedJournalPath}/${sluggify(entryKey)}/${journalFileName}`,
-                                                "utf8"
-                                            );
-                                            page.text = journalFile;
-                                            delete page.id;
-                                        } else {
-                                            console.warn(`  - Localized journal file for ${journalFileName} missing`);
+                                        if (page.id) {
+                                            const journalFileName = `${page.id}-${sluggify(pageKey)}.html`;
+                                            if (
+                                                readdirSync(`${localizedJournalPath}/${sluggify(entryKey)}`).includes(
+                                                    journalFileName
+                                                )
+                                            ) {
+                                                page.text = unifyHTML(
+                                                    readFileSync(
+                                                        `${localizedJournalPath}/${sluggify(
+                                                            entryKey
+                                                        )}/${journalFileName}`,
+                                                        "utf8"
+                                                    )
+                                                );
+                                                if (
+                                                    resolvePath(htmlModifications, [sluggify(entryKey), pageKey]).exists
+                                                ) {
+                                                    htmlModifications[sluggify(entryKey)][pageKey].forEach(
+                                                        (htmlMod) => {
+                                                            page.text = page.text.replace(htmlMod.base, htmlMod.mod);
+                                                            console.warn(
+                                                                `  - Modifying journal ${pageKey} based on config data`
+                                                            );
+                                                        }
+                                                    );
+                                                }
+
+                                                delete page.id;
+                                            } else {
+                                                console.warn(
+                                                    `  - Localized journal file for ${journalFileName} missing`
+                                                );
+                                            }
                                         }
                                     });
                                 }
@@ -102,3 +123,10 @@ ADVENTURE_CONFIG.adventureModules.forEach((adventureModule) => {
         });
     }
 });
+
+function unifyHTML(str) {
+    return str
+        .replace(/(\r\n|\n|\r)/g, "\n")
+        .replace(/\n\n/g, "\n")
+        .replace(/(^\n|\n$)/g, "");
+}
