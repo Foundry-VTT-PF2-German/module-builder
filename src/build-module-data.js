@@ -41,42 +41,58 @@ ADVENTURE_CONFIG.adventureModules.forEach((adventureModule) => {
                                 const journal = adventure.journal[journalKey];
                                 if (resolvePath(journal, "pages").exists) {
                                     Object.keys(journal.pages).forEach((pageKey) => {
-                                        const page = journal.pages[pageKey];
-                                        if (page.id) {
-                                            const journalFileName = `${page.id}-${sluggify(pageKey)}.html`;
-                                            if (
-                                                readdirSync(`${localizedJournalPath}/${sluggify(entryKey)}`).includes(
-                                                    journalFileName
-                                                )
-                                            ) {
-                                                page.text = unifyHTML(
-                                                    readFileSync(
-                                                        `${localizedJournalPath}/${sluggify(
-                                                            entryKey
-                                                        )}/${journalFileName}`,
-                                                        "utf8"
-                                                    )
-                                                );
+                                        let pageEntries = journal.pages[pageKey];
+                                        let deleteId = false;
+                                        if (!Array.isArray(pageEntries)) {
+                                            pageEntries = Array(pageEntries);
+                                            deleteId = true;
+                                        }
+                                        pageEntries.forEach((page) => {
+                                            if (page.id) {
+                                                const journalFileName = `${page.id}-${sluggify(pageKey)}.html`;
                                                 if (
-                                                    resolvePath(htmlModifications, [sluggify(entryKey), pageKey]).exists
+                                                    readdirSync(
+                                                        `${localizedJournalPath}/${sluggify(entryKey)}`
+                                                    ).includes(journalFileName)
                                                 ) {
-                                                    htmlModifications[sluggify(entryKey)][pageKey].forEach(
-                                                        (htmlMod) => {
-                                                            page.text = page.text.replace(htmlMod.base, htmlMod.mod);
-                                                            console.warn(
-                                                                `  - Modifying journal ${pageKey} based on config data`
-                                                            );
-                                                        }
+                                                    page.text = unifyHTML(
+                                                        readFileSync(
+                                                            `${localizedJournalPath}/${sluggify(
+                                                                entryKey
+                                                            )}/${journalFileName}`,
+                                                            "utf8"
+                                                        )
+                                                    );
+                                                    if (
+                                                        resolvePath(htmlModifications, [sluggify(entryKey), pageKey])
+                                                            .exists
+                                                    ) {
+                                                        htmlModifications[sluggify(entryKey)][pageKey].forEach(
+                                                            (htmlMod) => {
+                                                                page.text = page.text.replace(
+                                                                    htmlMod.base,
+                                                                    htmlMod.mod
+                                                                );
+                                                                console.warn(
+                                                                    `  - Modifying journal ${pageKey} based on config data`
+                                                                );
+                                                            }
+                                                        );
+                                                    }
+
+                                                    if (deleteId) {
+                                                        delete page.id;
+                                                    }
+                                                } else {
+                                                    console.warn(
+                                                        `  - Localized journal file for ${journalFileName} missing`
                                                     );
                                                 }
-
-                                                delete page.id;
-                                            } else {
-                                                console.warn(
-                                                    `  - Localized journal file for ${journalFileName} missing`
-                                                );
                                             }
-                                        }
+                                            if (pageEntries.length === 1) {
+                                                pageEntries = pageEntries[0];
+                                            }
+                                        });
                                     });
                                 }
                             });
