@@ -63,22 +63,6 @@ ADVENTURE_CONFIG.adventureModules.forEach((adventureModule) => {
                                                             "utf8"
                                                         )
                                                     );
-                                                    if (
-                                                        resolvePath(htmlModifications, [sluggify(entryKey), pageKey])
-                                                            .exists
-                                                    ) {
-                                                        htmlModifications[sluggify(entryKey)][pageKey].forEach(
-                                                            (htmlMod) => {
-                                                                page.text = page.text.replace(
-                                                                    htmlMod.base,
-                                                                    htmlMod.mod
-                                                                );
-                                                                console.warn(
-                                                                    `  - Modifying journal ${pageKey} based on config data`
-                                                                );
-                                                            }
-                                                        );
-                                                    }
 
                                                     if (deleteId) {
                                                         delete page.id;
