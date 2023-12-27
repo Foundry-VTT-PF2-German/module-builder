@@ -91,7 +91,7 @@ for (const adventureModule of ADVENTURE_CONFIG.adventureModules) {
         // Cleanup html save location and extract journal pages
         if (journalPath) {
             deleteFolderRecursive(journalPath);
-            const noTextPages = extractJournalPages(sourcePack, journalPath);
+            const noTextPages = extractJournalPages(sourcePack, adventureModule.htmlModifications, journalPath);
 
             // Delete Ids for journal pages without text from extracted pack data
             for (const noTextPage of noTextPages) {
@@ -158,7 +158,7 @@ Object.keys(adventureActorDictionary).forEach((savePath) => {
     saveFileWithDirectories(savePath, JSON.stringify(dictionary, null, 2));
 });
 
-function extractJournalPages(adventures, savePath) {
+function extractJournalPages(adventures, htmlModifications, savePath) {
     const noTextPages = [];
     for (const adventure of adventures) {
         for (const entry of adventure.journal) {
@@ -167,6 +167,13 @@ function extractJournalPages(adventures, savePath) {
                     noTextPages.push(`${adventure.name}.journal.${entry.name}.pages.${page.name}.id`);
                     continue;
                 }
+                if (resolvePath(htmlModifications, [sluggify(adventure.name), page.name]).exists) {
+                    htmlModifications[sluggify(adventure.name)][page.name].forEach((htmlMod) => {
+                        page.text.content = page.text.content.replace(htmlMod.base, htmlMod.mod);
+                        console.warn(`  - Modifying journal ${page.name} based on config data`);
+                    });
+                }
+
                 saveFileWithDirectories(
                     `${savePath}/${sluggify(adventure.name)}/${page._id}-${sluggify(page.name)}.html`,
                     page.text.content
