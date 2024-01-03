@@ -123,6 +123,7 @@ for (const adventureModule of ADVENTURE_CONFIG.adventureModules) {
                 adventure.actors.forEach((actor) => {
                     if (
                         resolvePath(actor, "flags.core.sourceId").exists &&
+                        actor.flags.core.sourceId !== null &&
                         actor.flags.core.sourceId.startsWith("Compendium.pf2e")
                     ) {
                         // Initialize compendium entry if neccessary
