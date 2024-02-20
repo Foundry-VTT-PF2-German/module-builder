@@ -91,12 +91,7 @@ for (const adventureModule of ADVENTURE_CONFIG.adventureModules) {
         // Cleanup html save location and extract journal pages
         if (journalPath) {
             deleteFolderRecursive(journalPath);
-            const noTextPages = extractJournalPages(sourcePack, adventureModule.htmlModifications, journalPath);
-
-            // Delete Ids for journal pages without text from extracted pack data
-            for (const noTextPage of noTextPages) {
-                deletePropertyByPath(extractedPackData.extractedPack.entries, noTextPage);
-            }
+            extractJournalPages(sourcePack, adventureModule.htmlModifications, journalPath);
         }
 
         // Save extracted JSON and create/update xliff file
@@ -160,12 +155,10 @@ Object.keys(adventureActorDictionary).forEach((savePath) => {
 });
 
 function extractJournalPages(adventures, htmlModifications, savePath) {
-    const noTextPages = [];
     for (const adventure of adventures) {
         for (const entry of adventure.journal) {
             for (const page of entry.pages) {
                 if (!page.text.content?.trim()) {
-                    noTextPages.push(`${adventure.name}.journal.${entry.name}.pages.${page.name}.id`);
                     continue;
                 }
                 if (resolvePath(htmlModifications, [sluggify(adventure.name), page.name]).exists) {
@@ -182,5 +175,4 @@ function extractJournalPages(adventures, htmlModifications, savePath) {
             }
         }
     }
-    return noTextPages;
 }
