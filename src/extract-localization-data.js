@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "fs";
-import { deletePropertyByPath, flattenObject, replaceProperties, sluggify } from "./helper/src/util/utilities.js";
+import { flattenObject, replaceProperties, sluggify } from "./helper/src/util/utilities.js";
 import { buildItemDatabase, extractPack } from "./helper/src/pack-extractor/pack-extractor.js";
 import { PF2_DEFAULT_MAPPING } from "./helper/src/pack-extractor/constants.js";
 import { ADVENTURE_CONFIG } from "../adventure-config.js";
@@ -70,13 +70,13 @@ for (const adventureModule of ADVENTURE_CONFIG.adventureModules) {
         // Initialize directory and file paths
         const bestiarySourcePath = adventureModule.savePaths.bestiarySources;
         const journalPath = adventureModule.savePaths.extractedJournals
-            ? `${adventureModule.savePaths.extractedJournals}/${adventureModule.moduleId}`
+            ? `${adventureModule.savePaths.extractedJournals}/${adventureModule.moduleId}.${adventurePack.name}`
             : undefined;
         const jsonFile = adventureModule.savePaths.xliffTranslation
-            ? `${adventureModule.savePaths.xliffTranslation}/${adventureModule.moduleId}-en.json`
+            ? `${adventureModule.savePaths.xliffTranslation}/${adventureModule.moduleId}.${adventurePack.name}-en.json`
             : undefined;
         const xliffFile = adventureModule.savePaths.xliffTranslation
-            ? `${adventureModule.savePaths.xliffTranslation}/${adventureModule.moduleId}.xliff`
+            ? `${adventureModule.savePaths.xliffTranslation}/${adventureModule.moduleId}.${adventurePack.name}.xliff`
             : undefined;
 
         // Get compendium data from levelDB and extract required data
