@@ -13,89 +13,93 @@ ADVENTURE_CONFIG.adventureModules.forEach((adventureModule) => {
     // Initialize directory and file paths
     const xliffPath = adventureModule.savePaths.xliffTranslation;
     const moduleCompendiumPath = adventureModule.savePaths.moduleCompendium;
-    const localizedJournalPath = `${adventureModule.savePaths.localizedJournals}/${adventureModule.moduleId}`;
     const bestiarySourcePath = adventureModule.savePaths.bestiarySources;
     const bestiaryCompendiumsPath = adventureModule.savePaths.bestiaryCompendiums;
-    const htmlModifications = adventureModule.htmlModifications;
-    const localizedJsonFile = `${adventureModule.moduleId}.adventures.json`;
-    const xliffFile = `${adventureModule.moduleId}.xliff`;
 
     // Build localized data
     console.warn("-----------------------------------");
     console.warn(`Building ${adventureModule.moduleId}`);
     // Check for existing xliff
     if (moduleCompendiumPath) {
-        if (existsSync(`${xliffPath}/${xliffFile}`)) {
-            // Create localized adventure json from xliff
-            const source = unflattenObject(xliffToJson(readFileSync(`${xliffPath}/${xliffFile}`, "utf-8")));
-            saveFileWithDirectories(`${moduleCompendiumPath}/${localizedJsonFile}`, JSON.stringify(source, null, 4));
+        adventureModule.adventurePacks.forEach((adventurePack) => {
+            const localizedJournalPath = `${adventureModule.savePaths.localizedJournals}/${adventureModule.moduleId}.${adventurePack.name}`;
+            const localizedJsonFile = `${adventureModule.moduleId}.${adventurePack.name}.json`;
+            const xliffFile = `${adventureModule.moduleId}.${adventurePack.name}.xliff`;
+            if (existsSync(`${xliffPath}/${xliffFile}`)) {
+                // Create localized adventure json from xliff
+                const source = unflattenObject(xliffToJson(readFileSync(`${xliffPath}/${xliffFile}`, "utf-8")));
+                saveFileWithDirectories(
+                    `${moduleCompendiumPath}/${localizedJsonFile}`,
+                    JSON.stringify(source, null, 4)
+                );
 
-            // Find journal entry pages within the created json files and insert the localized html data
-            const adventures = JSON.parse(readFileSync(`${moduleCompendiumPath}/${localizedJsonFile}`));
-            if (resolvePath(adventures, "entries").exists) {
-                Object.keys(adventures.entries).forEach((entryKey) => {
-                    const adventure = adventures.entries[entryKey];
-                    if (existsSync(`${localizedJournalPath}/${sluggify(entryKey)}`)) {
-                        if (resolvePath(adventure, "journal").exists) {
-                            Object.keys(adventure.journal).forEach((journalKey) => {
-                                const journal = adventure.journal[journalKey];
-                                if (resolvePath(journal, "pages").exists) {
-                                    Object.keys(journal.pages).forEach((pageKey) => {
-                                        let pageEntries = journal.pages[pageKey];
-                                        let deleteId = false;
-                                        if (!Array.isArray(pageEntries)) {
-                                            pageEntries = Array(pageEntries);
-                                            deleteId = true;
-                                        }
-                                        pageEntries.forEach((page) => {
-                                            if (page.id) {
-                                                if (page.id.startsWith("no-text-")) {
-                                                    page.id = page.id.replace("no-text-", "");
-                                                } else {
-                                                    const journalFileName = `${page.id}-${sluggify(pageKey)}.html`;
-                                                    if (
-                                                        readdirSync(
-                                                            `${localizedJournalPath}/${sluggify(entryKey)}`
-                                                        ).includes(journalFileName)
-                                                    ) {
-                                                        page.text = unifyHTML(
-                                                            readFileSync(
-                                                                `${localizedJournalPath}/${sluggify(
-                                                                    entryKey
-                                                                )}/${journalFileName}`,
-                                                                "utf8"
-                                                            )
-                                                        );
+                // Find journal entry pages within the created json files and insert the localized html data
+                const adventures = JSON.parse(readFileSync(`${moduleCompendiumPath}/${localizedJsonFile}`));
+                if (resolvePath(adventures, "entries").exists) {
+                    Object.keys(adventures.entries).forEach((entryKey) => {
+                        const adventure = adventures.entries[entryKey];
+                        if (existsSync(`${localizedJournalPath}/${sluggify(entryKey)}`)) {
+                            if (resolvePath(adventure, "journal").exists) {
+                                Object.keys(adventure.journal).forEach((journalKey) => {
+                                    const journal = adventure.journal[journalKey];
+                                    if (resolvePath(journal, "pages").exists) {
+                                        Object.keys(journal.pages).forEach((pageKey) => {
+                                            let pageEntries = journal.pages[pageKey];
+                                            let deleteId = false;
+                                            if (!Array.isArray(pageEntries)) {
+                                                pageEntries = Array(pageEntries);
+                                                deleteId = true;
+                                            }
+                                            pageEntries.forEach((page) => {
+                                                if (page.id) {
+                                                    if (page.id.startsWith("no-text-")) {
+                                                        page.id = page.id.replace("no-text-", "");
                                                     } else {
-                                                        console.warn(
-                                                            `  - Localized journal file for ${journalFileName} missing`
-                                                        );
+                                                        const journalFileName = `${page.id}-${sluggify(pageKey)}.html`;
+                                                        if (
+                                                            readdirSync(
+                                                                `${localizedJournalPath}/${sluggify(entryKey)}`
+                                                            ).includes(journalFileName)
+                                                        ) {
+                                                            page.text = unifyHTML(
+                                                                readFileSync(
+                                                                    `${localizedJournalPath}/${sluggify(
+                                                                        entryKey
+                                                                    )}/${journalFileName}`,
+                                                                    "utf8"
+                                                                )
+                                                            );
+                                                        } else {
+                                                            console.warn(
+                                                                `  - Localized journal file for ${journalFileName} missing`
+                                                            );
+                                                        }
+                                                    }
+                                                    if (deleteId) {
+                                                        delete page.id;
                                                     }
                                                 }
-                                                if (deleteId) {
-                                                    delete page.id;
+                                                if (pageEntries.length === 1) {
+                                                    pageEntries = pageEntries[0];
                                                 }
-                                            }
-                                            if (pageEntries.length === 1) {
-                                                pageEntries = pageEntries[0];
-                                            }
+                                            });
                                         });
-                                    });
-                                }
-                            });
+                                    }
+                                });
+                            }
+                        } else {
+                            console.warn("  - Localized journals directory missing!");
                         }
-                    } else {
-                        console.warn("  - Localized journals directory missing!");
-                    }
-                });
+                    });
+                }
+                saveFileWithDirectories(
+                    `${moduleCompendiumPath}/${localizedJsonFile}`,
+                    JSON.stringify(adventures, null, 2)
+                );
+            } else {
+                console.warn("  - No xliff file for this adventure");
             }
-            saveFileWithDirectories(
-                `${moduleCompendiumPath}/${localizedJsonFile}`,
-                JSON.stringify(adventures, null, 2)
-            );
-        } else {
-            console.warn("  - No xliff file for this adventure");
-        }
+        });
     } else {
         console.warn("  - No localized compendium path specified for this adventure");
     }
