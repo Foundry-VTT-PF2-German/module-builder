@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "fs";
 import { resolvePath } from "path-value";
 import { ADVENTURE_CONFIG } from "../adventure-config.js";
 import { sluggify, unflattenObject } from "./helper/src/util/utilities.js";
-import { parsePath, saveFileWithDirectories } from "./helper/src/util/fileHandler.js";
+import { parsePath, saveFileWithDirectories } from "./helper/src/util/file-handler.js";
 import { xliffToJson } from "./helper/src/util/xliff-tool.js";
 
 // Get the paths to the bestiary json files

@@ -3,7 +3,7 @@ import { flattenObject, replaceProperties, sluggify } from "./helper/src/util/ut
 import { buildItemDatabase, extractPack } from "./helper/src/pack-extractor/pack-extractor.js";
 import { PF2_DEFAULT_MAPPING } from "./helper/src/pack-extractor/constants.js";
 import { ADVENTURE_CONFIG } from "../adventure-config.js";
-import { getZipContentFromURL, deleteFolderRecursive, saveFileWithDirectories } from "./helper/src/util/fileHandler.js";
+import { getZipContentFromURL, deleteFolderRecursive, saveFileWithDirectories } from "./helper/src/util/file-handler.js";
 import { resolvePath } from "path-value";
 import { getJSONfromPack } from "./helper/src/util/level-db.js";
 import { jsonToXliff, updateXliff } from "./helper/src/util/xliff-tool.js";
