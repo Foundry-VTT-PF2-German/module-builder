@@ -2,20 +2,20 @@ import { existsSync, readFileSync } from "fs";
 import { flattenObject, replaceProperties, sluggify } from "./helper/src/util/utilities.js";
 import { buildItemDatabase, extractPack } from "./helper/src/pack-extractor/pack-extractor.js";
 import { PF2_DEFAULT_MAPPING } from "./helper/src/pack-extractor/constants.js";
-import { ADVENTURE_CONFIG } from "../adventure-config.js";
+import { CONFIG } from "../config.js";
 import { getZipContentFromURL, deleteFolderRecursive, saveFileWithDirectories } from "./helper/src/util/file-handler.js";
 import { resolvePath } from "path-value";
 import { getJSONfromPack } from "./helper/src/util/level-db.js";
 import { jsonToXliff, updateXliff } from "./helper/src/util/xliff-tool.js";
 
 // Fetch assets from current pf2 release and get zip contents
-const packs = await getZipContentFromURL(ADVENTURE_CONFIG.zipURL);
+const packs = await getZipContentFromURL(CONFIG.zipURL);
 
 // Build item database in order to compare actor items with their comdendium entries
-const itemDatabase = buildItemDatabase(packs, ADVENTURE_CONFIG.itemDatabase);
+const itemDatabase = buildItemDatabase(packs, CONFIG.itemDatabase);
 
 // Build actor database in order to connect actor id to actor name
-const actorDatabase = buildItemDatabase(packs, ADVENTURE_CONFIG.actorDatabase);
+const actorDatabase = buildItemDatabase(packs, CONFIG.actorDatabase);
 
 // Replace linked mappings and savePaths with actual data
 replaceProperties(PF2_DEFAULT_MAPPING, ["subMapping"], PF2_DEFAULT_MAPPING);
@@ -24,17 +24,17 @@ replaceProperties(PF2_DEFAULT_MAPPING, ["subMapping"], PF2_DEFAULT_MAPPING);
 const adventureActorDictionary = {};
 
 // Loop through configured adventure modules
-for (const adventureModule of ADVENTURE_CONFIG.adventureModules) {
+for (const currentModule of CONFIG.modules) {
     // Skip the current module if mandatory fields are missing
     if (
-        !adventureModule.moduleId ||
-        !adventureModule.modulePath ||
-        !adventureModule.adventurePacks ||
-        !adventureModule.savePaths
+        !currentModule.moduleId ||
+        !currentModule.modulePath ||
+        !currentModule.adventurePacks ||
+        !currentModule.savePaths
     ) {
         console.warn(
             `\nMissing mandatory fields moduleId, modulePath, adventurePacks, savePaths in config entry:\n${JSON.stringify(
-                adventureModule,
+                currentModule,
                 null,
                 2
             )}`
@@ -43,10 +43,10 @@ for (const adventureModule of ADVENTURE_CONFIG.adventureModules) {
     }
 
     console.warn(
-        `\n-----------------------------------\nExtracting ${adventureModule.moduleId}\n-----------------------------------`
+        `\n-----------------------------------\nExtracting ${currentModule.moduleId}\n-----------------------------------`
     );
 
-    const modulePath = `${adventureModule.modulePath}/${adventureModule.moduleId}`;
+    const modulePath = `${currentModule.modulePath}/${currentModule.moduleId}`;
 
     // Skip the current module if module path does not exist
     if (!existsSync(modulePath)) {
@@ -55,7 +55,7 @@ for (const adventureModule of ADVENTURE_CONFIG.adventureModules) {
     }
 
     // Loop through configured adventure packs within the current module
-    for (const adventurePack of adventureModule.adventurePacks) {
+    for (const adventurePack of currentModule.adventurePacks) {
         const packPath = `${modulePath}/${adventurePack.path}`;
 
         // Skip the current adventure pack if path does not exist
@@ -65,24 +65,24 @@ for (const adventureModule of ADVENTURE_CONFIG.adventureModules) {
         }
 
         // Check if xliff should get backuped
-        const xliffBackup = adventureModule.xliffBackup ? adventureModule.xliffBackup : false;
+        const xliffBackup = currentModule.xliffBackup ? currentModule.xliffBackup : false;
 
         // Initialize directory and file paths
-        const bestiarySourcePath = adventureModule.savePaths.bestiarySources;
-        const journalPath = adventureModule.savePaths.extractedJournals
-            ? `${adventureModule.savePaths.extractedJournals}/${adventureModule.moduleId}.${adventurePack.name}`
+        const bestiarySourcePath = currentModule.savePaths.bestiarySources;
+        const journalPath = currentModule.savePaths.extractedJournals
+            ? `${currentModule.savePaths.extractedJournals}/${currentModule.moduleId}.${adventurePack.name}`
             : undefined;
-        const jsonFile = adventureModule.savePaths.xliffTranslation
-            ? `${adventureModule.savePaths.xliffTranslation}/${adventureModule.moduleId}.${adventurePack.name}-en.json`
+        const jsonFile = currentModule.savePaths.xliffTranslation
+            ? `${currentModule.savePaths.xliffTranslation}/${currentModule.moduleId}.${adventurePack.name}-en.json`
             : undefined;
-        const xliffFile = adventureModule.savePaths.xliffTranslation
-            ? `${adventureModule.savePaths.xliffTranslation}/${adventureModule.moduleId}.${adventurePack.name}.xliff`
+        const xliffFile = currentModule.savePaths.xliffTranslation
+            ? `${currentModule.savePaths.xliffTranslation}/${currentModule.moduleId}.${adventurePack.name}.xliff`
             : undefined;
 
         // Get compendium data from levelDB and extract required data
         const { packData: sourcePack } = await getJSONfromPack(packPath);
         const extractedPackData = extractPack(
-            adventureModule.moduleId,
+            currentModule.moduleId,
             sourcePack,
             PF2_DEFAULT_MAPPING.adventure,
             itemDatabase
@@ -91,7 +91,7 @@ for (const adventureModule of ADVENTURE_CONFIG.adventureModules) {
         // Cleanup html save location and extract journal pages
         if (journalPath) {
             deleteFolderRecursive(journalPath);
-            extractJournalPages(sourcePack, adventureModule.htmlModifications, journalPath);
+            extractJournalPages(sourcePack, currentModule.htmlModifications, journalPath);
         }
 
         // Save extracted JSON and create/update xliff file
