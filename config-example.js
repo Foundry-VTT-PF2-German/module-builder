@@ -12,7 +12,7 @@ export const CONFIG = {
         {
             moduleId: "theModuleId",
             modulePath: "path/to/module",
-            adventurePacks: [{ name: "packName", path: "path/to/pack" }],
+            modulePacks: [{ name: "packName", path: "path/to/pack" }],
             xliffBackup: false,
             savePaths: {
                 bestiarySources:

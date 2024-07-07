@@ -21,10 +21,10 @@ CONFIG.modules.forEach((currentModule) => {
     console.warn(`Building ${currentModule.moduleId}`);
     // Check for existing xliff
     if (moduleCompendiumPath) {
-        currentModule.adventurePacks.forEach((adventurePack) => {
-            const localizedJournalPath = `${currentModule.savePaths.localizedJournals}/${currentModule.moduleId}.${adventurePack.name}`;
-            const localizedJsonFile = `${currentModule.moduleId}.${adventurePack.name}.json`;
-            const xliffFile = `${currentModule.moduleId}.${adventurePack.name}.xliff`;
+        currentModule.modulePacks.forEach((modulePack) => {
+            const localizedJournalPath = `${currentModule.savePaths.localizedJournals}/${currentModule.moduleId}.${modulePack.name}`;
+            const localizedJsonFile = `${currentModule.moduleId}.${modulePack.name}.json`;
+            const xliffFile = `${currentModule.moduleId}.${modulePack.name}.xliff`;
             if (existsSync(`${xliffPath}/${xliffFile}`)) {
                 // Create localized adventure json from xliff
                 const source = unflattenObject(xliffToJson(readFileSync(`${xliffPath}/${xliffFile}`, "utf-8")));
