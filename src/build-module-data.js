@@ -1,30 +1,30 @@
 import { existsSync, readdirSync, readFileSync } from "fs";
 import { resolvePath } from "path-value";
-import { ADVENTURE_CONFIG } from "../adventure-config.js";
+import { CONFIG } from "../config.js";
 import { sluggify, unflattenObject } from "./helper/src/util/utilities.js";
 import { parsePath, saveFileWithDirectories } from "./helper/src/util/file-handler.js";
 import { xliffToJson } from "./helper/src/util/xliff-tool.js";
 
 // Get the paths to the bestiary json files
-const bestiaryModulePaths = ADVENTURE_CONFIG.bestiaryPaths;
+const bestiaryModulePaths = CONFIG.bestiaryPaths;
 
 // Loop through configured adventures and build localized data for the module
-ADVENTURE_CONFIG.adventureModules.forEach((adventureModule) => {
+CONFIG.modules.forEach((currentModule) => {
     // Initialize directory and file paths
-    const xliffPath = adventureModule.savePaths.xliffTranslation;
-    const moduleCompendiumPath = adventureModule.savePaths.moduleCompendium;
-    const bestiarySourcePath = adventureModule.savePaths.bestiarySources;
-    const bestiaryCompendiumsPath = adventureModule.savePaths.bestiaryCompendiums;
+    const xliffPath = currentModule.savePaths.xliffTranslation;
+    const moduleCompendiumPath = currentModule.savePaths.moduleCompendium;
+    const bestiarySourcePath = currentModule.savePaths.bestiarySources;
+    const bestiaryCompendiumsPath = currentModule.savePaths.bestiaryCompendiums;
 
     // Build localized data
     console.warn("-----------------------------------");
-    console.warn(`Building ${adventureModule.moduleId}`);
+    console.warn(`Building ${currentModule.moduleId}`);
     // Check for existing xliff
     if (moduleCompendiumPath) {
-        adventureModule.adventurePacks.forEach((adventurePack) => {
-            const localizedJournalPath = `${adventureModule.savePaths.localizedJournals}/${adventureModule.moduleId}.${adventurePack.name}`;
-            const localizedJsonFile = `${adventureModule.moduleId}.${adventurePack.name}.json`;
-            const xliffFile = `${adventureModule.moduleId}.${adventurePack.name}.xliff`;
+        currentModule.adventurePacks.forEach((adventurePack) => {
+            const localizedJournalPath = `${currentModule.savePaths.localizedJournals}/${currentModule.moduleId}.${adventurePack.name}`;
+            const localizedJsonFile = `${currentModule.moduleId}.${adventurePack.name}.json`;
+            const xliffFile = `${currentModule.moduleId}.${adventurePack.name}.xliff`;
             if (existsSync(`${xliffPath}/${xliffFile}`)) {
                 // Create localized adventure json from xliff
                 const source = unflattenObject(xliffToJson(readFileSync(`${xliffPath}/${xliffFile}`, "utf-8")));

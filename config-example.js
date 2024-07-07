@@ -1,4 +1,4 @@
-export const ADVENTURE_CONFIG = {
+export const CONFIG = {
     zipURL: "https://github.com/foundryvtt/pf2e/releases/latest/download/json-assets.zip",
     bestiaryPaths: {
         "pathfinder-bestiary":
@@ -8,7 +8,7 @@ export const ADVENTURE_CONFIG = {
         "pathfinder-bestiary-3":
             "path/to/specified/bestiary/pf2e.pathfinder-bestiary-3.json",
     },
-    adventureModules: [
+    modules: [
         {
             moduleId: "theModuleId",
             modulePath: "path/to/module",
