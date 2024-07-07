@@ -33,25 +33,23 @@ const adventureActorDictionary = {};
 
 // Loop through configured modules
 for (const currentModule of CONFIG.modules) {
-    // Check required parameters in CONFIG
-    if (!checkRequiredParams(["moduleId", "modulePath"], currentModule)) {
+    // Check for required parameters
+    if (!checkRequiredParams(["moduleId", "modulePath", "dataOperations"], currentModule)) {
         continue;
     }
 
-    // Part 1 - Data extraction - extracts data from a specified source module
-    if (currentModule.dataExtractions) {
-        console.warn(
-            `\n---------------------------------------------\nExtracting data for ${currentModule.moduleId}\n---------------------------------------------`
-        );
+    // Process data operations for current module
+    console.warn(
+        `\n---------------------------------------------\nProcessing ${currentModule.moduleId}\n---------------------------------------------`
+    );
 
-        // Check if dataExtractions is an array
-        if (!Array.isArray(currentModule.dataExtractions)) {
-            console.warn(" - dataExtractions parameter is not an array");
-            continue;
-        }
-
-        await extractDataFromModules(currentModule.dataExtractions, database);
+    // Check if dataOperations is an array
+    if (!Array.isArray(currentModule.dataOperations)) {
+        console.warn(" - dataOperations parameter is not an array");
+        continue;
     }
+
+    await dataOperations(currentModule.dataOperations, database);
 
     // Part 2 - Data transformation - transorms data, e.g. leveldb to JSON or JSON to xliff
     if (currentModule.dataTransformation) {
@@ -78,55 +76,69 @@ function checkRequiredParams(params, data) {
     return check;
 }
 
-async function extractDataFromModules(dataExtractions, database) {
-    for (const dataExtraction of dataExtractions) {
-        // Check required parameters in CONFIG
-        if (!checkRequiredParams(["sourceModuleId", "sourceModulePath", "modulePacks"], dataExtraction)) {
+async function dataOperations(dataOperations, database) {
+    for (const dataOperation of dataOperations) {
+        // Check for required parameters
+        if (!checkRequiredParams(["type"], dataOperation)) {
             continue;
         }
 
-        console.warn(`Extracting from ${dataExtraction.sourceModuleId}`);
+        // Extract required data from module packs into JSON
+        if (dataOperation.type === "modulePacksConversion" || dataOperation.type === "modulePacksLocalization") {
+            // Check for required parameters
+            if (!checkRequiredParams(["sourceModuleId", "sourceModulePath", "modulePacks"], dataOperation)) {
+                continue;
+            }
 
-        // Check for modulePacks is an array
-        if (!Array.isArray(dataExtraction.modulePacks)) {
-            console.warn(" - modulePacks parameter is not an array");
-            continue;
+            console.warn(`Extracting data from module ${dataOperation.sourceModuleId}`);
+
+            // Check if modulePacks is an array
+            if (!Array.isArray(dataOperation.modulePacks)) {
+                console.warn(" - modulePacks parameter is not an array");
+                continue;
+            }
+
+            await extractDataFromModule(dataOperation, database, dataOperation.type.replace("modulePacks", ""));
         }
-
-        await extractDataFromModule(dataExtraction, database);
     }
 }
 
-async function extractDataFromModule(dataExtraction, database) {
+async function extractDataFromModule(dataExtraction, database, extractionType) {
     const sourceModule = { id: dataExtraction.sourceModuleId, path: dataExtraction.sourceModulePath };
     for (const modulePack of dataExtraction.modulePacks) {
-        // Check required parameters in CONFIG
+        // Check required parameters
         if (!checkRequiredParams(["name", "path"], modulePack)) {
             continue;
         }
 
-        await extractDataFromPack(sourceModule, modulePack, database);
+        const extractedPack = await extractDataFromPack(sourceModule, modulePack, database, extractionType);
+        saveFileWithDirectories("C:/Users/marco/OneDrive/Dokumente/GitHub/module-builder/test/test.json",JSON.stringify(extractedPack,null,2));
     }
 }
 
-async function extractDataFromPack(sourceModule, modulePack, database) {
+async function extractDataFromPack(sourceModule, modulePack, database, extractionType) {
     const packPath = `${sourceModule.path}/${modulePack.path}`;
 
-        // Skip the current module pack if path does not exist
-        if (!existsSync(packPath)) {
-            console.warn(` - Path to module pack ${modulePack.name} does not exist, check config file`);
-            return undefined;
-        }
+    // Skip the current module pack if path does not exist
+    if (!existsSync(packPath)) {
+        console.warn(` - Path to module pack ${modulePack.name} does not exist, check config file`);
+        return undefined;
+    }
 
-        // Get compendium data from levelDB and extract required data
-        const { packData: sourcePack } = await getJSONfromPack(packPath);
+    // Get compendium data from levelDB and extract required data
+    const { packData: sourcePack } = await getJSONfromPack(packPath);
+
+    if (extractionType === "Localization") {
         const extractedPackData = extractPack(
             sourceModule.id,
             sourcePack,
-            database.mappings,
+            database.mappings.adventure,
             database.items
         );
-        console.warn(extractedPackData);
+        return extractedPackData.extractedPack;
+    }
+
+    return sourcePack;
 }
 
 /*
@@ -155,14 +167,14 @@ async function extractDataFromPack(sourceModule, modulePack, database) {
             ? `${currentModule.savePaths.xliffTranslation}/${currentModule.moduleId}.${modulePack.name}.xliff`
             : undefined;
 
-        // Get compendium data from levelDB and extract required data
-        const { packData: sourcePack } = await getJSONfromPack(packPath);
-        const extractedPackData = extractPack(
-            currentModule.moduleId,
-            sourcePack,
-            PF2_DEFAULT_MAPPING.adventure,
-            itemDatabase
-        );
+*        // Get compendium data from levelDB and extract required data
+*        const { packData: sourcePack } = await getJSONfromPack(packPath);
+*        const extractedPackData = extractPack(
+*            currentModule.moduleId,
+*            sourcePack,
+*            PF2_DEFAULT_MAPPING.adventure,
+*            itemDatabase
+*        );
 
         // Cleanup html save location and extract journal pages
         if (journalPath) {
