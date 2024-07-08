@@ -24,6 +24,9 @@ database.items = buildItemDatabase(packs, CONFIG.itemDatabase);
 // Build actor database in order to connect actor id to actor name
 database.actors = buildItemDatabase(packs, CONFIG.actorDatabase);
 
+// Get paths to actor compendiums
+database.actorCompendiums = CONFIG.actorCompendiums;
+
 // Replace linked mappings and savePaths with actual data and build mapping database
 replaceProperties(PF2_DEFAULT_MAPPING, ["subMapping"], PF2_DEFAULT_MAPPING);
 database.mappings = PF2_DEFAULT_MAPPING;
@@ -152,28 +155,31 @@ async function extractDataFromPack(sourceModule, modulePack, itemDatabase, mappi
     return sourcePack;
 }
 
-function getActorSources(adventurePacks, actorDatabase) {
-    adventureActorDictionary[bestiarySourcePath] = adventureActorDictionary[bestiarySourcePath] || {};
-    sourcePack.forEach((adventure) => {
+function getActorSources(adventurePacks, actorDatabase, actorCompendiums) {
+    const actorSources = {};
+
+    adventurePacks.forEach((adventure) => {
         adventure.actors.forEach((actor) => {
             if (
                 resolvePath(actor, "flags.core.sourceId").exists &&
                 actor.flags.core.sourceId !== null &&
                 actor.flags.core.sourceId.startsWith("Compendium.pf2e")
             ) {
-                // Initialize compendium entry if neccessary
+                let actorLink = actor.flags.core.sourceId;
+
+                // Initialize structure for compendium if neccessary
                 const sourceIdComponents = actor.flags.core.sourceId.split(".");
-                // Add Actor to sourceId link for old link notation
+                const compendiumId = sourceIdComponents[2];
+                actorSources[compendiumId] = actorSources[compendiumId] || [];
+
+                // Handle old link notation
                 if (sourceIdComponents.length === 4) {
-                    actor.flags.core.sourceId = `Compendium.pf2e.${sourceIdComponents[2]}.Actor.${sourceIdComponents[3]}`;
+                    actorLink = `Compendium.pf2e.${compendiumId}.Actor.${sourceIdComponents[3]}`;
                 }
-                adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] =
-                    adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] || [];
-                adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] =
-                    adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] || [];
-                const actorName = actorDatabase[actor.flags.core.sourceId]?.name;
+
+                const actorName = actorDatabase[actorLink]?.name;
                 if (actorName) {
-                    adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]].push(actorName);
+                    adventureActorDictionary[compendiumId].push(actorName);
                 }
             }
         });
