@@ -84,7 +84,7 @@ async function dataOperations(dataOperations, database) {
         }
 
         // Extract required data from module packs into JSON
-        if (dataOperation.type === "modulePacksConversion" || dataOperation.type === "modulePacksLocalization") {
+        if (dataOperation.type === "ConvertModulePacks" || dataOperation.type === "LocalizeModulePacks") {
             // Check for required parameters
             if (!checkRequiredParams(["sourceModuleId", "sourceModulePath", "modulePacks"], dataOperation)) {
                 continue;
@@ -98,25 +98,41 @@ async function dataOperations(dataOperations, database) {
                 continue;
             }
 
-            await extractDataFromModule(dataOperation, database, dataOperation.type.replace("modulePacks", ""));
+            const localization = dataOperation.type === "LocalizeModulePacks" ? true : false;
+
+            const extractedData = await extractDataFromModule(dataOperation, database, localization);
+            saveFileWithDirectories(
+                "C:/Users/marco/OneDrive/Dokumente/GitHub/module-builder/test/test.json",
+                JSON.stringify(extractedData, null, 2)
+            );
         }
     }
 }
 
-async function extractDataFromModule(dataExtraction, database, extractionType) {
+async function extractDataFromModule(dataExtraction, database, localization) {
     const sourceModule = { id: dataExtraction.sourceModuleId, path: dataExtraction.sourceModulePath };
+    const extractedData = { sourceModule: sourceModule, extractedPacks: [], bestiarySources: {} };
     for (const modulePack of dataExtraction.modulePacks) {
         // Check required parameters
         if (!checkRequiredParams(["name", "path"], modulePack)) {
             continue;
         }
 
-        const extractedPack = await extractDataFromPack(sourceModule, modulePack, database, extractionType);
-        saveFileWithDirectories("C:/Users/marco/OneDrive/Dokumente/GitHub/module-builder/test/test.json",JSON.stringify(extractedPack,null,2));
+        const extractedPack = await extractDataFromPack(
+            sourceModule,
+            modulePack,
+            database.items,
+            database.mappings.adventure,
+            localization
+        );
+        if (extractedPack) {
+            extractedData.extractedPacks.push({ packName: modulePack.name, packData: extractedPack });
+        }
     }
+    return extractedData;
 }
 
-async function extractDataFromPack(sourceModule, modulePack, database, extractionType) {
+async function extractDataFromPack(sourceModule, modulePack, itemDatabase, mappings, localization) {
     const packPath = `${sourceModule.path}/${modulePack.path}`;
 
     // Skip the current module pack if path does not exist
@@ -128,17 +144,40 @@ async function extractDataFromPack(sourceModule, modulePack, database, extractio
     // Get compendium data from levelDB and extract required data
     const { packData: sourcePack } = await getJSONfromPack(packPath);
 
-    if (extractionType === "Localization") {
-        const extractedPackData = extractPack(
-            sourceModule.id,
-            sourcePack,
-            database.mappings.adventure,
-            database.items
-        );
+    if (localization) {
+        const extractedPackData = extractPack(sourceModule.id, sourcePack, mappings, itemDatabase);
         return extractedPackData.extractedPack;
     }
 
     return sourcePack;
+}
+
+function getActorSources(adventurePacks, actorDatabase) {
+    adventureActorDictionary[bestiarySourcePath] = adventureActorDictionary[bestiarySourcePath] || {};
+    sourcePack.forEach((adventure) => {
+        adventure.actors.forEach((actor) => {
+            if (
+                resolvePath(actor, "flags.core.sourceId").exists &&
+                actor.flags.core.sourceId !== null &&
+                actor.flags.core.sourceId.startsWith("Compendium.pf2e")
+            ) {
+                // Initialize compendium entry if neccessary
+                const sourceIdComponents = actor.flags.core.sourceId.split(".");
+                // Add Actor to sourceId link for old link notation
+                if (sourceIdComponents.length === 4) {
+                    actor.flags.core.sourceId = `Compendium.pf2e.${sourceIdComponents[2]}.Actor.${sourceIdComponents[3]}`;
+                }
+                adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] =
+                    adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] || [];
+                adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] =
+                    adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] || [];
+                const actorName = actorDatabase[actor.flags.core.sourceId]?.name;
+                if (actorName) {
+                    adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]].push(actorName);
+                }
+            }
+        });
+    });
 }
 
 /*
