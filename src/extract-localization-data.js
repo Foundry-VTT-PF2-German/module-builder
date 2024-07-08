@@ -24,9 +24,6 @@ database.items = buildItemDatabase(packs, CONFIG.itemDatabase);
 // Build actor database in order to connect actor id to actor name
 database.actors = buildItemDatabase(packs, CONFIG.actorDatabase);
 
-// Get paths to actor compendiums
-database.actorCompendiums = CONFIG.actorCompendiums;
-
 // Replace linked mappings and savePaths with actual data and build mapping database
 replaceProperties(PF2_DEFAULT_MAPPING, ["subMapping"], PF2_DEFAULT_MAPPING);
 database.mappings = PF2_DEFAULT_MAPPING;
@@ -52,7 +49,9 @@ for (const currentModule of CONFIG.modules) {
         continue;
     }
 
-    await dataOperations(currentModule.dataOperations, database);
+    const module = { id: currentModule.moduleId, path: currentModule.modulePath };
+
+    await dataOperations(module, currentModule.dataOperations, database);
 
     // Part 2 - Data transformation - transorms data, e.g. leveldb to JSON or JSON to xliff
     if (currentModule.dataTransformation) {
@@ -79,14 +78,15 @@ function checkRequiredParams(params, data) {
     return check;
 }
 
-async function dataOperations(dataOperations, database) {
+async function dataOperations(module, dataOperations, database) {
+    const collectedData = { localizedModulePacks: [], convertedModulePacks: [], actorSources: {} };
     for (const dataOperation of dataOperations) {
         // Check for required parameters
         if (!checkRequiredParams(["type"], dataOperation)) {
             continue;
         }
 
-        // Extract required data from module packs into JSON
+        // Extract data from module packs into JSON
         if (dataOperation.type === "ConvertModulePacks" || dataOperation.type === "LocalizeModulePacks") {
             // Check for required parameters
             if (!checkRequiredParams(["sourceModuleId", "sourceModulePath", "modulePacks"], dataOperation)) {
@@ -100,42 +100,61 @@ async function dataOperations(dataOperations, database) {
                 console.warn(" - modulePacks parameter is not an array");
                 continue;
             }
+        }
 
-            const localization = dataOperation.type === "LocalizeModulePacks" ? true : false;
+        if (dataOperation.type === "ConvertModulePacks") {
+            const convertedModulePackData = await extractDataFromModule(dataOperation, database, false);
+            if (convertedModulePackData.moduleData) {
+                collectedData.convertedModulePacks.push(convertedModulePackData.moduleData);
+            }
+            if (convertedModulePackData.actorSources) {
+                mergeActorSources(collectedData.actorSources, convertedModulePackData.actorSources);
+            }
+        }
 
-            const extractedData = await extractDataFromModule(dataOperation, database, localization);
-            saveFileWithDirectories(
-                "C:/Users/marco/OneDrive/Dokumente/GitHub/module-builder/test/test.json",
-                JSON.stringify(extractedData, null, 2)
-            );
+        if (dataOperation.type === "LocalizeModulePacks") {
+            const localizedModulePackData = await extractDataFromModule(dataOperation, database, true);
+            if (localizedModulePackData.moduleData) {
+                collectedData.localizedModulePacks.push(localizedModulePackData.moduleData);
+            }
+            if (localizedModulePackData.actorSources) {
+                mergeActorSources(collectedData.actorSources, localizedModulePackData.actorSources);
+            }
         }
     }
+
+    // Save generated data to destinations
+    saveGeneratedData(module, collectedData);
+    saveFileWithDirectories(
+        "C:/Users/marco/OneDrive/Dokumente/GitHub/module-builder/test/test.json",
+        JSON.stringify(collectedData, null, 2)
+    );
 }
 
 async function extractDataFromModule(dataExtraction, database, localization) {
     const sourceModule = { id: dataExtraction.sourceModuleId, path: dataExtraction.sourceModulePath };
-    const extractedData = { sourceModule: sourceModule, extractedPacks: [], bestiarySources: {} };
+    const extractedData = { moduleData: { sourceModule: sourceModule, extractedPacks: [] }, actorSources: {} };
     for (const modulePack of dataExtraction.modulePacks) {
         // Check required parameters
         if (!checkRequiredParams(["name", "path"], modulePack)) {
             continue;
         }
 
-        const extractedPack = await extractDataFromPack(
-            sourceModule,
-            modulePack,
-            database.items,
-            database.mappings.adventure,
-            localization
-        );
-        if (extractedPack) {
-            extractedData.extractedPacks.push({ packName: modulePack.name, packData: extractedPack });
+        const extractedPackData = await extractDataFromPack(sourceModule, modulePack, database, localization);
+        if (extractedPackData.extractedPack) {
+            extractedData.moduleData.extractedPacks.push({
+                packName: modulePack.name,
+                packData: extractedPackData.extractedPack,
+            });
+        }
+        if (extractedPackData.actorSources) {
+            mergeActorSources(extractedData.actorSources, extractedPackData.actorSources);
         }
     }
     return extractedData;
 }
 
-async function extractDataFromPack(sourceModule, modulePack, itemDatabase, mappings, localization) {
+async function extractDataFromPack(sourceModule, modulePack, database, localization) {
     const packPath = `${sourceModule.path}/${modulePack.path}`;
 
     // Skip the current module pack if path does not exist
@@ -146,44 +165,102 @@ async function extractDataFromPack(sourceModule, modulePack, itemDatabase, mappi
 
     // Get compendium data from levelDB and extract required data
     const { packData: sourcePack } = await getJSONfromPack(packPath);
+    const actorSources = getActorSources(sourcePack, database.actors);
 
     if (localization) {
-        const extractedPackData = extractPack(sourceModule.id, sourcePack, mappings, itemDatabase);
-        return extractedPackData.extractedPack;
+        const extractedPackData = extractPack(sourceModule.id, sourcePack, database.mappings.adventure, database.items);
+        return { extractedPack: extractedPackData.extractedPack, actorSources: actorSources };
     }
-
-    return sourcePack;
+    return { extractedPack: sourcePack, actorSources: actorSources };
 }
 
-function getActorSources(adventurePacks, actorDatabase, actorCompendiums) {
+function getActorSources(adventurePack, actorDatabase) {
     const actorSources = {};
-
-    adventurePacks.forEach((adventure) => {
-        adventure.actors.forEach((actor) => {
+    for (const adventure of adventurePack) {
+        for (const actor of adventure.actors) {
             if (
-                resolvePath(actor, "flags.core.sourceId").exists &&
-                actor.flags.core.sourceId !== null &&
-                actor.flags.core.sourceId.startsWith("Compendium.pf2e")
+                !(
+                    resolvePath(actor, "flags.core.sourceId").exists &&
+                    actor.flags.core.sourceId !== null &&
+                    actor.flags.core.sourceId.startsWith("Compendium.pf2e")
+                )
             ) {
-                let actorLink = actor.flags.core.sourceId;
+                continue;
+            }
+            let actorLink = actor.flags.core.sourceId;
 
-                // Initialize structure for compendium if neccessary
-                const sourceIdComponents = actor.flags.core.sourceId.split(".");
-                const compendiumId = sourceIdComponents[2];
-                actorSources[compendiumId] = actorSources[compendiumId] || [];
+            // Initialize structure for compendium if neccessary
+            const sourceIdComponents = actor.flags.core.sourceId.split(".");
+            const compendiumId = sourceIdComponents[2];
 
-                // Handle old link notation
-                if (sourceIdComponents.length === 4) {
-                    actorLink = `Compendium.pf2e.${compendiumId}.Actor.${sourceIdComponents[3]}`;
-                }
+            // Handle old link notation
+            if (sourceIdComponents.length === 4) {
+                actorLink = `Compendium.pf2e.${compendiumId}.Actor.${sourceIdComponents[3]}`;
+            }
 
-                const actorName = actorDatabase[actorLink]?.name;
-                if (actorName) {
-                    adventureActorDictionary[compendiumId].push(actorName);
+            const actorName = actorDatabase[actorLink]?.name;
+            if (!actorName) {
+                continue;
+            }
+            actorSources[compendiumId] = actorSources[compendiumId] || [];
+
+            if (!actorSources[compendiumId].includes(actorName)) {
+                actorSources[compendiumId].push(actorName);
+            }
+        }
+    }
+    return actorSources;
+}
+
+function mergeActorSources(actorSources, newActorSources) {
+    // Find compendiums that don't already exist within actorSources
+    const newCompendiums = Object.keys(newActorSources).filter((x) => !Object.keys(actorSources).includes(x));
+
+    // Add actors to existing compendiums without duplicates
+    Object.keys(actorSources).forEach((compendium) => {
+        if (newActorSources[compendium]) {
+            for (const newActor of newActorSources[compendium]) {
+                if (!actorSources[compendium].includes(newActor)) {
+                    actorSources[compendium].push(newActor);
                 }
             }
-        });
+        }
+        actorSources[compendium].sort();
     });
+
+    // Add new compendiums
+    for (const newCompendium of newCompendiums) {
+        actorSources[newCompendium] = newActorSources[newCompendium];
+        actorSources[newCompendium].sort();
+    }
+}
+
+function saveGeneratedData(module, collectedData) {
+    const modulePath = module.path;
+    if (collectedData.localizedModulePacks) {
+        for (const localizedPacks of collectedData.localizedModulePacks) {
+            for (const extractedPack of localizedPacks.extractedPacks) {
+                const jsonFile = `${modulePath}/dev/${localizedPacks.sourceModule.id}.${extractedPack.packName}-en.json`;
+                const xliffFile = `${modulePath}/dev/${localizedPacks.sourceModule.id}.${extractedPack.packName}.xliff`;
+                // Save extracted JSON and create/update xliff file
+                saveFileWithDirectories(jsonFile, JSON.stringify(extractedPack.packData, null, 4));
+                let target = "";
+                if (existsSync(xliffFile)) {
+                    const xliff = readFileSync(xliffFile, "utf-8");
+                    target = updateXliff(xliff, flattenObject(extractedPack.packData));
+                } else {
+                    target = jsonToXliff(flattenObject(extractedPack.packData));
+                }
+                saveFileWithDirectories(xliffFile, target);
+            }
+        }
+    }
+
+    if (collectedData.convertedModulePacks) {
+    }
+
+    if (collectedData.actorSources) {
+    }
 }
 
 /*
@@ -227,44 +304,44 @@ function getActorSources(adventurePacks, actorDatabase, actorCompendiums) {
             extractJournalPages(sourcePack, currentModule.htmlModifications, journalPath);
         }
 
-        // Save extracted JSON and create/update xliff file
-        if (xliffFile) {
-            saveFileWithDirectories(jsonFile, JSON.stringify(extractedPackData.extractedPack, null, 4));
-            let target = "";
-            if (existsSync(xliffFile)) {
-                const xliff = readFileSync(xliffFile, "utf-8");
-                target = updateXliff(xliff, flattenObject(extractedPackData.extractedPack));
-            } else {
-                target = jsonToXliff(flattenObject(extractedPackData.extractedPack));
-            }
-            saveFileWithDirectories(xliffFile, target);
-        }
+*        // Save extracted JSON and create/update xliff file
+*        if (xliffFile) {
+*            saveFileWithDirectories(jsonFile, JSON.stringify(extractedPackData.extractedPack, null, 4));
+*            let target = "";
+*            if (existsSync(xliffFile)) {
+*                const xliff = readFileSync(xliffFile, "utf-8");
+*                target = updateXliff(xliff, flattenObject(extractedPackData.extractedPack));
+*            } else {
+*                target = jsonToXliff(flattenObject(extractedPackData.extractedPack));
+*            }
+*            saveFileWithDirectories(xliffFile, target);
+*        }
 
-        // Build dictionary for adventure actor sources if save location is specified
-        // Ignore locked sourceFiles in config - those files are built manually and are only used during module build
-        if (bestiarySourcePath && !bestiarySourcePath.includes(".locked.")) {
-            adventureActorDictionary[bestiarySourcePath] = adventureActorDictionary[bestiarySourcePath] || {};
-            sourcePack.forEach((adventure) => {
-                adventure.actors.forEach((actor) => {
-                    if (
-                        resolvePath(actor, "flags.core.sourceId").exists &&
-                        actor.flags.core.sourceId !== null &&
-                        actor.flags.core.sourceId.startsWith("Compendium.pf2e")
-                    ) {
-                        // Initialize compendium entry if neccessary
-                        const sourceIdComponents = actor.flags.core.sourceId.split(".");
-                        // Add Actor to sourceId link for old link notation
-                        if (sourceIdComponents.length === 4) {
-                            actor.flags.core.sourceId = `Compendium.pf2e.${sourceIdComponents[2]}.Actor.${sourceIdComponents[3]}`;
-                        }
-                        adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] =
-                            adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] || [];
-                        adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] =
-                            adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] || [];
-                        const actorName = actorDatabase[actor.flags.core.sourceId]?.name;
-                        if (actorName) {
-                            adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]].push(actorName);
-                        }
+*        // Build dictionary for adventure actor sources if save location is specified
+*        // Ignore locked sourceFiles in config - those files are built manually and are only used during module build
+*        if (bestiarySourcePath && !bestiarySourcePath.includes(".locked.")) {
+*            adventureActorDictionary[bestiarySourcePath] = adventureActorDictionary[bestiarySourcePath] || {};
+*            sourcePack.forEach((adventure) => {
+*                adventure.actors.forEach((actor) => {
+*                    if (
+*                       resolvePath(actor, "flags.core.sourceId").exists &&
+*                        actor.flags.core.sourceId !== null &&
+*                        actor.flags.core.sourceId.startsWith("Compendium.pf2e")
+*                    ) {
+*                        // Initialize compendium entry if neccessary
+*                        const sourceIdComponents = actor.flags.core.sourceId.split(".");
+*                        // Add Actor to sourceId link for old link notation
+*                        if (sourceIdComponents.length === 4) {
+*                            actor.flags.core.sourceId = `Compendium.pf2e.${sourceIdComponents[2]}.Actor.${sourceIdComponents[3]}`;
+*                        }
+*                        adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] =
+*                            adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] || [];
+*                        adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] =
+*                            adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] || [];
+*                        const actorName = actorDatabase[actor.flags.core.sourceId]?.name;
+*                        if (actorName) {
+*                            adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]].push(actorName);
+*                        }
                     }
                 });
             });
