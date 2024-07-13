@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "fs";
-import { flattenObject, replaceProperties, sluggify } from "./helper/src/util/utilities.js";
+import { deletePropertyByPath, flattenObject, replaceProperties, sluggify } from "./helper/src/util/utilities.js";
 import { buildItemDatabase, extractPack } from "./helper/src/pack-extractor/pack-extractor.js";
 import { PF2_DEFAULT_MAPPING } from "./helper/src/pack-extractor/constants.js";
 import { CONFIG } from "../config.js";
@@ -7,10 +7,12 @@ import {
     getZipContentFromURL,
     deleteFolderRecursive,
     saveFileWithDirectories,
+    parsePath,
 } from "./helper/src/util/file-handler.js";
 import { resolvePath } from "path-value";
 import { getJSONfromPack } from "./helper/src/util/level-db.js";
 import { jsonToXliff, updateXliff } from "./helper/src/util/xliff-tool.js";
+import { readJSONFile } from "./helper/src/build/config-helper.js";
 
 // Fetch assets from current pf2 release and get zip contents
 const packs = await getZipContentFromURL(CONFIG.zipURL);
@@ -79,7 +81,14 @@ function checkRequiredParams(params, data) {
 }
 
 async function dataOperations(module, dataOperations, database) {
-    const collectedData = { localizedModulePacks: [], convertedModulePacks: [], actorSources: {} };
+    const collectedData = {
+        localizedModulePacks: [],
+        convertedModulePacks: [],
+        extractedJournalPages: [],
+        jsonToXliff: [],
+        actorSources: {},
+    };
+
     for (const dataOperation of dataOperations) {
         // Check for required parameters
         if (!checkRequiredParams(["type"], dataOperation)) {
@@ -87,7 +96,11 @@ async function dataOperations(module, dataOperations, database) {
         }
 
         // Extract data from module packs into JSON
-        if (dataOperation.type === "ConvertModulePacks" || dataOperation.type === "LocalizeModulePacks") {
+        if (
+            dataOperation.type === "ConvertModulePacks" ||
+            dataOperation.type === "LocalizeModulePacks" ||
+            dataOperation.type === "ExtractJournalPages"
+        ) {
             // Check for required parameters
             if (!checkRequiredParams(["sourceModuleId", "sourceModulePath", "modulePacks"], dataOperation)) {
                 continue;
@@ -121,14 +134,50 @@ async function dataOperations(module, dataOperations, database) {
                 mergeActorSources(collectedData.actorSources, localizedModulePackData.actorSources);
             }
         }
+
+        if (dataOperation.type === "ExtractJournalPages") {
+            const extractedJournalPagesData = await extractDataFromModule(dataOperation, database, false);
+            if (extractedJournalPagesData.moduleData) {
+                collectedData.extractedJournalPages.push(extractedJournalPagesData.moduleData);
+            }
+            if (extractedJournalPagesData.actorSources) {
+                mergeActorSources(collectedData.actorSources, extractedJournalPagesData.actorSources);
+            }
+        }
+
+        // Get data from json files
+        if (dataOperation.type === "ConvertJsonToXliff") {
+            // Check for required parameters
+            if (!checkRequiredParams(["sourceModuleId", "sourceModulePath", "jsonFiles"], dataOperation)) {
+                continue;
+            }
+
+            console.warn(`Generating xliff files from ${dataOperation.sourceModuleId}`);
+
+            // Check if jsonFiles is an array
+            if (!Array.isArray(dataOperation.jsonFiles)) {
+                console.warn(" - jsonFiles parameter is not an array");
+                continue;
+            }
+
+            for (const jsonFile of dataOperation.jsonFiles) {
+                const jsonPath = `${dataOperation.sourceModulePath}/${jsonFile.filePath}`;
+                const fileName = jsonFile.changeName ? jsonFile.changeName : parsePath(jsonPath).fileName;
+
+                if (!existsSync(jsonPath)) {
+                    console.warn(` - ${jsonPath} does not exist`);
+                    continue;
+                }
+                collectedData.jsonToXliff.push({
+                    fileName: fileName,
+                    data: readJSONFile(jsonPath),
+                });
+            }
+        }
     }
 
     // Save generated data to destinations
     saveGeneratedData(module, collectedData);
-    saveFileWithDirectories(
-        "C:/Users/marco/OneDrive/Dokumente/GitHub/module-builder/test/test.json",
-        JSON.stringify(collectedData, null, 2)
-    );
 }
 
 async function extractDataFromModule(dataExtraction, database, localization) {
@@ -145,6 +194,7 @@ async function extractDataFromModule(dataExtraction, database, localization) {
             extractedData.moduleData.extractedPacks.push({
                 packName: modulePack.name,
                 packData: extractedPackData.extractedPack,
+                adventureJournalPages: extractedPackData.adventureJournalPages,
             });
         }
         if (extractedPackData.actorSources) {
@@ -166,12 +216,27 @@ async function extractDataFromPack(sourceModule, modulePack, database, localizat
     // Get compendium data from levelDB and extract required data
     const { packData: sourcePack } = await getJSONfromPack(packPath);
     const actorSources = getActorSources(sourcePack, database.actors);
-
+    const adventureJournalPages = extractJournalPages(sourcePack, modulePack.htmlModifications);
     if (localization) {
         const extractedPackData = extractPack(sourceModule.id, sourcePack, database.mappings.adventure, database.items);
-        return { extractedPack: extractedPackData.extractedPack, actorSources: actorSources };
+        return {
+            extractedPack: extractedPackData.extractedPack,
+            actorSources: actorSources,
+            adventureJournalPages: adventureJournalPages,
+        };
     }
-    return { extractedPack: sourcePack, actorSources: actorSources };
+    removeJournalPagesContent(sourcePack);
+    return { extractedPack: sourcePack, actorSources: actorSources, adventureJournalPages: adventureJournalPages };
+}
+
+function removeJournalPagesContent(packData) {
+    for (const pack of packData) {
+        for (const journalEntry of pack.journal) {
+            for (const page of journalEntry.pages) {
+                deletePropertyByPath(page, "text.content");
+            }
+        }
+    }
 }
 
 function getActorSources(adventurePack, actorDatabase) {
@@ -235,151 +300,125 @@ function mergeActorSources(actorSources, newActorSources) {
     }
 }
 
-function saveGeneratedData(module, collectedData) {
-    const modulePath = module.path;
-    if (collectedData.localizedModulePacks) {
-        for (const localizedPacks of collectedData.localizedModulePacks) {
-            for (const extractedPack of localizedPacks.extractedPacks) {
-                const jsonFile = `${modulePath}/dev/${localizedPacks.sourceModule.id}.${extractedPack.packName}-en.json`;
-                const xliffFile = `${modulePath}/dev/${localizedPacks.sourceModule.id}.${extractedPack.packName}.xliff`;
-                // Save extracted JSON and create/update xliff file
-                saveFileWithDirectories(jsonFile, JSON.stringify(extractedPack.packData, null, 4));
-                let target = "";
-                if (existsSync(xliffFile)) {
-                    const xliff = readFileSync(xliffFile, "utf-8");
-                    target = updateXliff(xliff, flattenObject(extractedPack.packData));
-                } else {
-                    target = jsonToXliff(flattenObject(extractedPack.packData));
-                }
-                saveFileWithDirectories(xliffFile, target);
-            }
-        }
-    }
-
-    if (collectedData.convertedModulePacks) {
-    }
-
-    if (collectedData.actorSources) {
-    }
-}
-
-/*
-
-    const sourceModulePath = `${currentModule.dataExtraction.sourceModulePath}/${currentModule.dataExtraction.sourceModuleId}`;
-
-    // Loop through configured adventure packs within the current module
-    for (const modulePack of currentModule.modulePacks) {
-        const packPath = `${sourceModulePath}/${modulePack.path}`;
-
-        // Skip the current adventure pack if path does not exist
-        if (!existsSync(packPath)) {
-            console.warn(`Path to adventure pack ${modulePack.name} does not exist, check config file`);
-            continue;
-        }
-
-        // Initialize directory and file paths
-        const bestiarySourcePath = currentModule.savePaths.bestiarySources;
-        const journalPath = currentModule.savePaths.extractedJournals
-            ? `${currentModule.savePaths.extractedJournals}/${currentModule.moduleId}.${modulePack.name}`
-            : undefined;
-        const jsonFile = currentModule.savePaths.xliffTranslation
-            ? `${currentModule.savePaths.xliffTranslation}/${currentModule.moduleId}.${modulePack.name}-en.json`
-            : undefined;
-        const xliffFile = currentModule.savePaths.xliffTranslation
-            ? `${currentModule.savePaths.xliffTranslation}/${currentModule.moduleId}.${modulePack.name}.xliff`
-            : undefined;
-
-*        // Get compendium data from levelDB and extract required data
-*        const { packData: sourcePack } = await getJSONfromPack(packPath);
-*        const extractedPackData = extractPack(
-*            currentModule.moduleId,
-*            sourcePack,
-*            PF2_DEFAULT_MAPPING.adventure,
-*            itemDatabase
-*        );
-
-        // Cleanup html save location and extract journal pages
-        if (journalPath) {
-            deleteFolderRecursive(journalPath);
-            extractJournalPages(sourcePack, currentModule.htmlModifications, journalPath);
-        }
-
-*        // Save extracted JSON and create/update xliff file
-*        if (xliffFile) {
-*            saveFileWithDirectories(jsonFile, JSON.stringify(extractedPackData.extractedPack, null, 4));
-*            let target = "";
-*            if (existsSync(xliffFile)) {
-*                const xliff = readFileSync(xliffFile, "utf-8");
-*                target = updateXliff(xliff, flattenObject(extractedPackData.extractedPack));
-*            } else {
-*                target = jsonToXliff(flattenObject(extractedPackData.extractedPack));
-*            }
-*            saveFileWithDirectories(xliffFile, target);
-*        }
-
-*        // Build dictionary for adventure actor sources if save location is specified
-*        // Ignore locked sourceFiles in config - those files are built manually and are only used during module build
-*        if (bestiarySourcePath && !bestiarySourcePath.includes(".locked.")) {
-*            adventureActorDictionary[bestiarySourcePath] = adventureActorDictionary[bestiarySourcePath] || {};
-*            sourcePack.forEach((adventure) => {
-*                adventure.actors.forEach((actor) => {
-*                    if (
-*                       resolvePath(actor, "flags.core.sourceId").exists &&
-*                        actor.flags.core.sourceId !== null &&
-*                        actor.flags.core.sourceId.startsWith("Compendium.pf2e")
-*                    ) {
-*                        // Initialize compendium entry if neccessary
-*                        const sourceIdComponents = actor.flags.core.sourceId.split(".");
-*                        // Add Actor to sourceId link for old link notation
-*                        if (sourceIdComponents.length === 4) {
-*                            actor.flags.core.sourceId = `Compendium.pf2e.${sourceIdComponents[2]}.Actor.${sourceIdComponents[3]}`;
-*                        }
-*                        adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] =
-*                            adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] || [];
-*                        adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] =
-*                            adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]] || [];
-*                        const actorName = actorDatabase[actor.flags.core.sourceId]?.name;
-*                        if (actorName) {
-*                            adventureActorDictionary[bestiarySourcePath][sourceIdComponents[2]].push(actorName);
-*                        }
-                    }
-                });
-            });
-        }
-    }
-}
-
-// Remove duplicates and empty compendium entries from adventure actor sources and save the dictionary to the specified locations
-Object.keys(adventureActorDictionary).forEach((savePath) => {
-    const dictionary = {};
-    Object.keys(adventureActorDictionary[savePath]).forEach((compendium) => {
-        const sortedEntries = [...new Set(adventureActorDictionary[savePath][compendium].sort())];
-        if (sortedEntries.length > 0) {
-            dictionary[compendium] = sortedEntries;
-        }
-    });
-    saveFileWithDirectories(savePath, JSON.stringify(dictionary, null, 2));
-});
-
-function extractJournalPages(adventures, htmlModifications, savePath) {
+function extractJournalPages(adventures, htmlModifications) {
+    const adventureJournalPages = [];
     for (const adventure of adventures) {
+        const journalPages = [];
         for (const entry of adventure.journal) {
             for (const page of entry.pages) {
                 if (!page.text.content?.trim()) {
                     continue;
                 }
-                if (resolvePath(htmlModifications, [sluggify(adventure.name), page.name]).exists) {
-                    htmlModifications[sluggify(adventure.name)][page.name].forEach((htmlMod) => {
-                        page.text.content = page.text.content.replace(htmlMod.base, htmlMod.mod);
-                        console.warn(`  - Modifying journal ${page.name} based on config data`);
+                let journalPage = page.text.content;
+                if (resolvePath(htmlModifications, [sluggify(adventure.name), `${page._id}-${page.name}`]).exists) {
+                    htmlModifications[sluggify(adventure.name)][`${page._id}-${page.name}`].forEach((htmlMod) => {
+                        if (!page.text.content.includes(htmlMod.base)) {
+                            console.warn(
+                                `  - HTML modification: The following text was not found in ${page._id}-${page.name}\n${htmlMod.base}`
+                            );
+                        } else {
+                            journalPage = page.text.content.replace(htmlMod.base, htmlMod.mod);
+                            console.warn(`  - Modifying journal ${page._id}-${page.name} based on config data`);
+                        }
                     });
                 }
+                journalPages.push({ pageName: `${page._id}-${sluggify(page.name)}.html`, content: journalPage });
+            }
+        }
+        adventureJournalPages.push({ adventureName: sluggify(adventure.name), pages: journalPages });
+    }
+    return adventureJournalPages;
+}
 
-                saveFileWithDirectories(
-                    `${savePath}/${sluggify(adventure.name)}/${page._id}-${sluggify(page.name)}.html`,
-                    page.text.content
-                );
+function saveHTMLfiles(adventureJournalPages, savePath) {
+    for (const journalPages of adventureJournalPages) {
+        for (const journalPage of journalPages.pages) {
+            saveFileWithDirectories(
+                `${savePath}/${journalPages.adventureName}/${journalPage.pageName}`,
+                journalPage.content
+            );
+        }
+    }
+}
+
+function saveGeneratedData(module, collectedData) {
+    const modulePath = module.path;
+
+    // Delete html save location
+    deleteFolderRecursive(`${modulePath}/dev/journals/source`);
+
+    if (collectedData.localizedModulePacks) {
+        for (const localizedPacks of collectedData.localizedModulePacks) {
+            for (const extractedPack of localizedPacks.extractedPacks) {
+                const jsonFile = `${modulePath}/dev/${localizedPacks.sourceModule.id}.${extractedPack.packName}-en.json`;
+                const xliffFile = `${modulePath}/dev/${localizedPacks.sourceModule.id}.${extractedPack.packName}.xliff`;
+                const htmlFiles = `${modulePath}/dev/journals/source/${localizedPacks.sourceModule.id}.${extractedPack.packName}`;
+                // Save extracted JSON and create/update xliff file
+                if (extractedPack.packData) {
+                    saveFileWithDirectories(jsonFile, JSON.stringify(extractedPack.packData, null, 4));
+                    let target = "";
+                    if (existsSync(xliffFile)) {
+                        const xliff = readFileSync(xliffFile, "utf-8");
+                        target = updateXliff(xliff, flattenObject(extractedPack.packData));
+                    } else {
+                        target = jsonToXliff(flattenObject(extractedPack.packData));
+                    }
+                    saveFileWithDirectories(xliffFile, target);
+                }
+
+                // Save html files
+                saveHTMLfiles(extractedPack.adventureJournalPages, htmlFiles);
             }
         }
     }
-}*/
+
+    if (collectedData.convertedModulePacks) {
+        for (const convertedPacks of collectedData.convertedModulePacks) {
+            for (const extractedPack of convertedPacks.extractedPacks) {
+                const jsonFile = `${modulePath}/dev/${convertedPacks.sourceModule.id}.${extractedPack.packName}.json`;
+                const htmlFiles = `${modulePath}/dev/journals/source/${convertedPacks.sourceModule.id}.${extractedPack.packName}`;
+                if (extractedPack.packData) {
+                    // Save extracted JSON
+                    saveFileWithDirectories(jsonFile, JSON.stringify(extractedPack.packData, null, 4));
+                }
+                // Save html files
+                saveHTMLfiles(extractedPack.adventureJournalPages, htmlFiles);
+            }
+        }
+    }
+
+    if (collectedData.extractedJournalPages) {
+        for (const extractedJournalPages of collectedData.extractedJournalPages) {
+            for (const extractedPack of extractedJournalPages.extractedPacks) {
+                const htmlFiles = `${modulePath}/dev/journals/source/${extractedJournalPages.sourceModule.id}.${extractedPack.packName}`;
+
+                // Save html files
+                saveHTMLfiles(extractedPack.adventureJournalPages, htmlFiles);
+            }
+        }
+    }
+
+    if (collectedData.jsonToXliff) {
+        for (const jsonToXliffData of collectedData.jsonToXliff) {
+            const jsonFile = `${modulePath}/dev/${jsonToXliffData.fileName}-en.json`;
+            const xliffFile = `${modulePath}/dev/${jsonToXliffData.fileName}.xliff`;
+            saveFileWithDirectories(jsonFile, JSON.stringify(jsonToXliffData.data, null, 4));
+            let target = "";
+            if (existsSync(xliffFile)) {
+                const xliff = readFileSync(xliffFile, "utf-8");
+                target = updateXliff(xliff, flattenObject(jsonToXliffData.data));
+            } else {
+                target = jsonToXliff(flattenObject(jsonToXliffData.data));
+            }
+            saveFileWithDirectories(xliffFile, target);
+        }
+    }
+
+    if (Object.keys(collectedData.actorSources).length > 0) {
+        // Write actorSources file if no .locked. actorSource exists in destination path
+        if (!existsSync(`${modulePath}/dev/actorSources.locked.json`)) {
+            const actorSourceFile = `${modulePath}/dev/actorSources.json`;
+            saveFileWithDirectories(actorSourceFile, JSON.stringify(collectedData.actorSources, null, 2));
+        }
+    }
+}
