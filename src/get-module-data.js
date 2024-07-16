@@ -54,10 +54,6 @@ for (const currentModule of CONFIG.modules) {
     const module = { id: currentModule.moduleId, path: currentModule.modulePath };
 
     await dataOperations(module, currentModule.dataOperations, database);
-
-    // Part 2 - Data transformation - transorms data, e.g. leveldb to JSON or JSON to xliff
-    if (currentModule.dataTransformation) {
-    }
 }
 
 /**
@@ -194,7 +190,7 @@ async function extractDataFromModule(dataExtraction, database, localization) {
             extractedData.moduleData.extractedPacks.push({
                 packName: modulePack.name,
                 packData: extractedPackData.extractedPack,
-                adventureJournalPages: extractedPackData.adventureJournalPages,
+                journalPages: extractedPackData.journalPages,
             });
         }
         if (extractedPackData.actorSources) {
@@ -214,27 +210,52 @@ async function extractDataFromPack(sourceModule, modulePack, database, localizat
     }
 
     // Get compendium data from levelDB and extract required data
-    const { packData: sourcePack } = await getJSONfromPack(packPath);
-    const actorSources = getActorSources(sourcePack, database.actors);
-    const adventureJournalPages = extractJournalPages(sourcePack, modulePack.htmlModifications);
+    const extractedPack = await getJSONfromPack(packPath);
+    const actorSources = getActorSources(extractedPack.packData, database.actors);
+    const journalPages =
+        extractedPack.packType === "adventures"
+            ? extractAdventuresJournalPages(extractedPack.packData, modulePack.htmlModifications)
+            : extractJournalPages(extractedPack.packData);
     if (localization) {
-        const extractedPackData = extractPack(sourceModule.id, sourcePack, database.mappings.adventure, database.items);
+        const localizationData = extractPack(
+            sourceModule.id,
+            extractedPack.packData,
+            database.mappings.adventure,
+            database.items
+        );
         return {
-            extractedPack: extractedPackData.extractedPack,
+            extractedPack: localizationData.extractedPack,
             actorSources: actorSources,
-            adventureJournalPages: adventureJournalPages,
+            journalPages: journalPages,
         };
     }
-    removeJournalPagesContent(sourcePack);
-    return { extractedPack: sourcePack, actorSources: actorSources, adventureJournalPages: adventureJournalPages };
+    if (extractedPack.packType === "adventures") {
+        removeAdventuresJournalPagesContent(extractedPack.packData);
+    } else {
+        removeJournalsPagesContent(extractedPack.packData);
+    }
+    return { extractedPack: extractedPack, actorSources: actorSources, journalPages: journalPages };
 }
 
-function removeJournalPagesContent(packData) {
+function removeAdventuresJournalPagesContent(packData) {
     for (const pack of packData) {
-        for (const journalEntry of pack.journal) {
-            for (const page of journalEntry.pages) {
-                deletePropertyByPath(page, "text.content");
+        if (!pack.journal) {
+            continue;
+        }
+        removeJournalsPagesContent(pack.journal);
+    }
+}
+
+function removeJournalsPagesContent(journals) {
+    for (const journal of journals) {
+        if (!journal.pages) {
+            continue;
+        }
+        for (const page of journal.pages) {
+            if (!page.text.content?.trim()) {
+                page._id = `no-text-${page._id}`;
             }
+            deletePropertyByPath(page, "text.content");
         }
     }
 }
@@ -242,6 +263,9 @@ function removeJournalPagesContent(packData) {
 function getActorSources(adventurePack, actorDatabase) {
     const actorSources = {};
     for (const adventure of adventurePack) {
+        if (!adventure.actors) {
+            continue;
+        }
         for (const actor of adventure.actors) {
             if (
                 !(
@@ -300,10 +324,29 @@ function mergeActorSources(actorSources, newActorSources) {
     }
 }
 
-function extractJournalPages(adventures, htmlModifications) {
+function extractJournalPages(journals) {
+    const extractedjournals = [];
+    for (const journal of journals) {
+        const journalPages = [];
+        for (const page of journal.pages) {
+            if (!page.text.content?.trim()) {
+                continue;
+            }
+            let journalPage = page.text.content;
+            journalPages.push({ pageName: `${page._id}-${sluggify(page.name)}.html`, content: journalPage });
+        }
+        extractedjournals.push({ journalName: sluggify(journal.name), pages: journalPages });
+    }
+    return extractedjournals;
+}
+
+function extractAdventuresJournalPages(adventures, htmlModifications) {
     const adventureJournalPages = [];
     for (const adventure of adventures) {
         const journalPages = [];
+        if (!adventure.journal) {
+            continue;
+        }
         for (const entry of adventure.journal) {
             for (const page of entry.pages) {
                 if (!page.text.content?.trim()) {
@@ -325,18 +368,15 @@ function extractJournalPages(adventures, htmlModifications) {
                 journalPages.push({ pageName: `${page._id}-${sluggify(page.name)}.html`, content: journalPage });
             }
         }
-        adventureJournalPages.push({ adventureName: sluggify(adventure.name), pages: journalPages });
+        adventureJournalPages.push({ journalName: sluggify(adventure.name), pages: journalPages });
     }
     return adventureJournalPages;
 }
 
-function saveHTMLfiles(adventureJournalPages, savePath) {
-    for (const journalPages of adventureJournalPages) {
-        for (const journalPage of journalPages.pages) {
-            saveFileWithDirectories(
-                `${savePath}/${journalPages.adventureName}/${journalPage.pageName}`,
-                journalPage.content
-            );
+function saveHTMLfiles(journals, savePath) {
+    for (const journal of journals) {
+        for (const journalPage of journal.pages) {
+            saveFileWithDirectories(`${savePath}/${journal.journalName}/${journalPage.pageName}`, journalPage.content);
         }
     }
 }
@@ -367,7 +407,7 @@ function saveGeneratedData(module, collectedData) {
                 }
 
                 // Save html files
-                saveHTMLfiles(extractedPack.adventureJournalPages, htmlFiles);
+                saveHTMLfiles(extractedPack.journalPages, htmlFiles);
             }
         }
     }
@@ -375,14 +415,14 @@ function saveGeneratedData(module, collectedData) {
     if (collectedData.convertedModulePacks) {
         for (const convertedPacks of collectedData.convertedModulePacks) {
             for (const extractedPack of convertedPacks.extractedPacks) {
-                const jsonFile = `${modulePath}/dev/${convertedPacks.sourceModule.id}.${extractedPack.packName}.json`;
+                const jsonFile = `${modulePath}/dev/packs/${convertedPacks.sourceModule.id}.${extractedPack.packName}.json`;
                 const htmlFiles = `${modulePath}/dev/journals/source/${convertedPacks.sourceModule.id}.${extractedPack.packName}`;
                 if (extractedPack.packData) {
                     // Save extracted JSON
                     saveFileWithDirectories(jsonFile, JSON.stringify(extractedPack.packData, null, 4));
                 }
                 // Save html files
-                saveHTMLfiles(extractedPack.adventureJournalPages, htmlFiles);
+                saveHTMLfiles(extractedPack.journalPages, htmlFiles);
             }
         }
     }
@@ -393,7 +433,7 @@ function saveGeneratedData(module, collectedData) {
                 const htmlFiles = `${modulePath}/dev/journals/source/${extractedJournalPages.sourceModule.id}.${extractedPack.packName}`;
 
                 // Save html files
-                saveHTMLfiles(extractedPack.adventureJournalPages, htmlFiles);
+                saveHTMLfiles(extractedPack.journalPages, htmlFiles);
             }
         }
     }
@@ -418,7 +458,7 @@ function saveGeneratedData(module, collectedData) {
         // Write actorSources file if no .locked. actorSource exists in destination path
         if (!existsSync(`${modulePath}/dev/actorSources.locked.json`)) {
             const actorSourceFile = `${modulePath}/dev/actorSources.json`;
-            saveFileWithDirectories(actorSourceFile, JSON.stringify(collectedData.actorSources, null, 2));
+            saveFileWithDirectories(actorSourceFile, JSON.stringify(collectedData.actorSources, null, 4));
         }
     }
 }

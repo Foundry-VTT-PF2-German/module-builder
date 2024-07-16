@@ -8,7 +8,7 @@
         "path-value": "^0.9.5"
     },
     "scripts": {
-        "build-module": "node ./src/build-module.js",
+        "update-build-data": "node ./src/update-build-data.js",
         "get-module-data": "node ./src/get-module-data.js"
     },
     "type": "module"
