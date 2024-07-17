@@ -1,8 +1,12 @@
-import { existsSync, readdirSync, readFileSync } from "fs";
-import { resolvePath } from "path-value";
+import { existsSync, readFileSync } from "fs";
 import { CONFIG } from "../config.js";
 import { sluggify, unflattenObject } from "./helper/src/util/utilities.js";
-import { deleteFolderRecursive, parsePath, saveFileWithDirectories } from "./helper/src/util/file-handler.js";
+import {
+    copyDirectory,
+    deleteFolderRecursive,
+    parsePath,
+    saveFileWithDirectories,
+} from "./helper/src/util/file-handler.js";
 import { xliffToJson } from "./helper/src/util/xliff-tool.js";
 import { createPack } from "./helper/src/util/level-db.js";
 import { readJSONFile } from "./helper/src/build/config-helper.js";
@@ -17,7 +21,7 @@ for (const currentModule of CONFIG.modules) {
     buildModules(module, currentModule.dataOperations, {});
 }
 
-function buildModules(module, dataOperations, database) {
+function buildModules(module, dataOperations) {
     console.warn(`Building module ${module.id}`);
     deleteFolderRecursive(`${module.path}/build-data`);
     for (const dataOperation of dataOperations) {
@@ -28,15 +32,27 @@ function buildModules(module, dataOperations, database) {
 
         if (dataOperation.type === "ConvertModulePacks") {
             buildModulePacks(module, dataOperation);
+            buildActorCompendiums(module, actorCompendiums);
         }
 
         if (dataOperation.type === "ConvertJsonToXliff") {
             buildJsonFromXliff(module, dataOperation);
         }
 
-        // TODO
-        if (dataOperation.type === "ExtractJournalPages") {
+        if (dataOperation.type === "Build-TransferFolderContent") {
+            transferFolderContent(module, dataOperation);
         }
+    }
+}
+
+function transferFolderContent(module, dataOperation) {
+    for (const folder of dataOperation.folders) {
+        const sourcePath = `${module.path}/${folder.source}`;
+        const targetPath = `${module.path}/${folder.target}`;
+        if (!existsSync(sourcePath)) {
+            continue;
+        }
+        copyDirectory(sourcePath, targetPath);
     }
 }
 
@@ -46,7 +62,6 @@ function buildActorCompendiums(module, actorCompendiums) {
         ? `${module.path}/dev/actorSources.json`
         : `${module.path}/dev/actorSources.locked.json`;
     if (!existsSync(actorSourcesFile)) {
-        console.warn(` - actorSources missing within ${module.path}/dev`);
         return false;
     }
 
