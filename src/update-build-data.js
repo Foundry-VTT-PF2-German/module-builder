@@ -111,11 +111,6 @@ async function buildModulePacks(module, dataOperation) {
             }
         }
 
-        saveFileWithDirectories(
-            `C:/Users/marco/OneDrive/Dokumente/GitHub/module-builder/Test/${fileName}.json`,
-            JSON.stringify(jsonData, null, 4)
-        );
-
         deleteFolderRecursive(packPath);
         await createPack(packPath, jsonData.packType, jsonData.packData, jsonData.folders);
     }
