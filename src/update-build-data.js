@@ -157,13 +157,14 @@ function buildCompendiumLocalization(module, dataOperation) {
 
 function mergeLocalizedCompendiumJournals(jsonData, htmlPath) {
     for (const entryKey in jsonData.entries) {
-        const htmlFiles = `${htmlPath}/${sluggify(entryKey)}`;
-        if (!existsSync(htmlFiles)) {
-            console.warn(` - Path to html files ${htmlFiles} missing`);
-            continue;
-        }
         const entry = jsonData.entries[entryKey];
+        const htmlFiles = `${htmlPath}/${sluggify(entryKey)}`;
         if (entry.journal) {
+            if (!existsSync(htmlFiles)) {
+                console.warn(` - Path to html files ${htmlFiles} missing`);
+                continue;
+            }
+
             for (const journalKey in entry.journal) {
                 const journal = entry.journal[journalKey];
                 if (!journal.pages) {

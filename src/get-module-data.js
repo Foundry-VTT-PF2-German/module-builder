@@ -328,6 +328,9 @@ function extractJournalPages(journals) {
     const extractedjournals = [];
     for (const journal of journals) {
         const journalPages = [];
+        if (!journal.pages) {
+            continue;
+        }
         for (const page of journal.pages) {
             if (!page.text.content?.trim()) {
                 continue;
