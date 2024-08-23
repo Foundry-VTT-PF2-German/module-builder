@@ -76,7 +76,7 @@ function checkRequiredParams(params, data) {
     return check;
 }
 
-async function dataOperations(module, dataOperations, database) {
+export async function dataOperations(module, dataOperations, database) {
     const collectedData = {
         localizedModulePacks: [],
         convertedModulePacks: [],
