@@ -21,7 +21,7 @@ for (const currentModule of CONFIG.modules) {
     buildModules(module, currentModule.dataOperations, {});
 }
 
-function buildModules(module, dataOperations) {
+export function buildModules(module, dataOperations) {
     console.warn(`Building module ${module.id}`);
     deleteFolderRecursive(`${module.path}/build-data`);
     for (const dataOperation of dataOperations) {
