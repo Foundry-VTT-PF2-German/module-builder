@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "fs";
 import { deletePropertyByPath, flattenObject, replaceProperties, sluggify } from "./helper/src/util/utilities.js";
 import { buildItemDatabase, extractPack } from "./helper/src/pack-extractor/pack-extractor.js";
-import { PF2_DEFAULT_MAPPING } from "./helper/src/pack-extractor/constants.js";
+import { PF2_DEFAULT_MAPPING, ACTOR_REDIRECTS } from "./helper/src/pack-extractor/constants.js";
 import { CONFIG } from "../config.js";
 import {
     getZipContentFromURL,
@@ -25,6 +25,12 @@ database.items = buildItemDatabase(packs, CONFIG.itemDatabase);
 
 // Build actor database in order to connect actor id to actor name
 database.actors = buildItemDatabase(packs, CONFIG.actorDatabase);
+
+// Get list of used actor compendiums
+database.actorCompendiums = Object.keys(CONFIG.actorCompendiums);
+
+// Get list of used actor redirects
+database.actorRedirects = ACTOR_REDIRECTS;
 
 // Replace linked mappings and savePaths with actual data and build mapping database
 replaceProperties(PF2_DEFAULT_MAPPING, ["subMapping"], PF2_DEFAULT_MAPPING);
@@ -211,7 +217,12 @@ async function extractDataFromPack(sourceModule, modulePack, database, localizat
 
     // Get compendium data from levelDB and extract required data
     const extractedPack = await getJSONfromPack(packPath);
-    const actorSources = getActorSources(extractedPack.packData, database.actors);
+    const actorSources = getActorSources(
+        extractedPack.packData,
+        database.actors,
+        database.actorCompendiums,
+        database.actorRedirects
+    );
     const journalPages =
         extractedPack.packType === "adventures"
             ? extractAdventuresJournalPages(extractedPack.packData, modulePack.htmlModifications)
@@ -221,7 +232,9 @@ async function extractDataFromPack(sourceModule, modulePack, database, localizat
             sourceModule.id,
             extractedPack.packData,
             database.mappings.adventure,
-            database.items
+            database.items,
+            undefined,
+            database.actorRedirects
         );
         return {
             extractedPack: localizationData.extractedPack,
@@ -260,7 +273,7 @@ function removeJournalsPagesContent(journals) {
     }
 }
 
-function getActorSources(adventurePack, actorDatabase) {
+function getActorSources(adventurePack, actorDatabase, actorCompendiums, actorRedirects) {
     const actorSources = {};
     for (const adventure of adventurePack) {
         if (!adventure.actors) {
@@ -278,8 +291,16 @@ function getActorSources(adventurePack, actorDatabase) {
             }
             let actorLink = actor.flags.core.sourceId;
 
+            // Handle actor Redirects
+            for (const actorRedirect of actorRedirects) {
+                if (actorLink === actorRedirect.linkOld) {
+                    console.warn(`  - Redirecting ${actorRedirect.name} to new source: ${actorRedirect.linkNew}`);
+                    actorLink = actorRedirect.linkNew;
+                }
+            }
+
             // Initialize structure for compendium if neccessary
-            const sourceIdComponents = actor.flags.core.sourceId.split(".");
+            const sourceIdComponents = actorLink.split(".");
             const compendiumId = sourceIdComponents[2];
 
             // Handle old link notation
@@ -288,6 +309,13 @@ function getActorSources(adventurePack, actorDatabase) {
             }
 
             const actorName = actorDatabase[actorLink]?.name;
+
+            // Handle missing sources for actor compendiums
+            if (actorCompendiums.includes(compendiumId) && !actorName) {
+                console.warn(`  - Actor ${actor.name} (Id: ${actorLink}) does not exist.`);
+                continue;
+            }
+
             if (!actorName) {
                 continue;
             }
