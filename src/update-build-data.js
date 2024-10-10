@@ -42,6 +42,10 @@ export function buildModules(module, dataOperations) {
         if (dataOperation.type === "Build-TransferFolderContent") {
             transferFolderContent(module, dataOperation);
         }
+
+        if (dataOperation.type === "Build-BuildActorCompendiums") {
+            buildActorCompendiums(module, actorCompendiums);
+        }
     }
 }
 
