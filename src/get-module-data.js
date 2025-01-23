@@ -228,14 +228,24 @@ async function extractDataFromPack(sourceModule, modulePack, database, localizat
             ? extractAdventuresJournalPages(extractedPack.packData, modulePack.htmlModifications)
             : extractJournalPages(extractedPack.packData);
     if (localization) {
-        const localizationData = extractPack(
-            sourceModule.id,
-            extractedPack.packData,
-            database.mappings.adventure,
-            database.items,
-            undefined,
-            database.actorRedirects
-        );
+        let localizationData = "";
+        if (extractedPack.packType === "actors") {
+            localizationData = extractPack(
+                sourceModule.id,
+                extractedPack.packData,
+                database.mappings.actor,
+                database.items
+            );
+        } else {
+            localizationData = extractPack(
+                sourceModule.id,
+                extractedPack.packData,
+                database.mappings.adventure,
+                database.items,
+                undefined,
+                database.actorRedirects
+            );
+        }
         return {
             extractedPack: localizationData.extractedPack,
             actorSources: actorSources,
