@@ -401,7 +401,7 @@ function extractAdventuresJournalPages(adventures, htmlModifications) {
                                 `  - HTML modification: The following text was not found in ${page._id}-${page.name}\n${htmlMod.base}`
                             );
                         } else {
-                            journalPage = page.text.content.replace(htmlMod.base, htmlMod.mod);
+                            journalPage = journalPage.replace(htmlMod.base, htmlMod.mod);
                             console.warn(`  - Modifying journal ${page._id}-${page.name} based on config data`);
                         }
                     });
