@@ -416,7 +416,7 @@ function extractAdventuresJournalPages(adventures, htmlModifications) {
                 journalPages.push({ pageName: `${page._id}-${sluggify(page.name)}.html`, content: journalPage });
             }
             adventureJournalPages.push({
-                adventureName: adventure.name,
+                adventureName: sluggify(adventure.name),
                 journalName: sluggify(entry.name),
                 pages: journalPages,
             });
