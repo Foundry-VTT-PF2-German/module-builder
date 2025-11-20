@@ -428,10 +428,12 @@ function extractAdventuresJournalPages(adventures, htmlModifications) {
 function saveHTMLfiles(journals, savePath) {
     for (const journal of journals) {
         for (const journalPage of journal.pages) {
-            saveFileWithDirectories(
-                `${savePath}/${journal.adventureName}/${journal.journalName}/${journalPage.pageName}`,
-                journalPage.content
-            );
+            const filePath =
+                `${savePath}` +
+                (journal.adventureName !== undefined ? `/${journal.adventureName}` : "") +
+                `/${journal.journalName}` +
+                `/${journalPage.pageName}`;
+            saveFileWithDirectories(filePath, journalPage.content);
         }
     }
 }
