@@ -394,8 +394,15 @@ function extractAdventuresJournalPages(adventures, htmlModifications) {
                     continue;
                 }
                 let journalPage = page.text.content;
-                if (resolvePath(htmlModifications, [sluggify(adventure.name), `${sluggify(entry.name)}-${page._id}-${page.name}`]).exists) {
-                    htmlModifications[sluggify(adventure.name)][`${sluggify(entry.name)}-${page._id}-${page.name}`].forEach((htmlMod) => {
+                if (
+                    resolvePath(htmlModifications, [
+                        sluggify(adventure.name),
+                        `${sluggify(entry.name)}-${page._id}-${page.name}`,
+                    ]).exists
+                ) {
+                    htmlModifications[sluggify(adventure.name)][
+                        `${sluggify(entry.name)}-${page._id}-${page.name}`
+                    ].forEach((htmlMod) => {
                         if (!page.text.content.includes(htmlMod.base)) {
                             console.warn(
                                 `  - HTML modification: The following text was not found in ${page._id}-${page.name}\n${htmlMod.base}`
@@ -408,7 +415,11 @@ function extractAdventuresJournalPages(adventures, htmlModifications) {
                 }
                 journalPages.push({ pageName: `${page._id}-${sluggify(page.name)}.html`, content: journalPage });
             }
-            adventureJournalPages.push({ adventureName: adventure.name, journalName: sluggify(entry.name), pages: journalPages });
+            adventureJournalPages.push({
+                adventureName: adventure.name,
+                journalName: sluggify(entry.name),
+                pages: journalPages,
+            });
         }
     }
     return adventureJournalPages;
@@ -417,7 +428,10 @@ function extractAdventuresJournalPages(adventures, htmlModifications) {
 function saveHTMLfiles(journals, savePath) {
     for (const journal of journals) {
         for (const journalPage of journal.pages) {
-            saveFileWithDirectories(`${savePath}/${journal.adventureName}/${journal.journalName}/${journalPage.pageName}`, journalPage.content);
+            saveFileWithDirectories(
+                `${savePath}/${journal.adventureName}/${journal.journalName}/${journalPage.pageName}`,
+                journalPage.content
+            );
         }
     }
 }
