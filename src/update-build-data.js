@@ -174,7 +174,7 @@ function mergeLocalizedCompendiumJournals(jsonData, htmlPath) {
                 if (!journal.pages) {
                     continue;
                 }
-                mergeLocalizedJournal(journal, htmlFiles);
+                mergeLocalizedJournal(journal, sluggify(journalKey), htmlFiles);
             }
         }
     }
@@ -228,7 +228,7 @@ function mergePackJournal(journal, htmlFiles) {
     }
 }
 
-function mergeLocalizedJournal(journal, htmlFiles) {
+function mergeLocalizedJournal(journal, journalKey, htmlFiles) {
     for (const pageKey in journal.pages) {
         let pageEntries = journal.pages[pageKey];
         let deleteId = false;
@@ -241,7 +241,7 @@ function mergeLocalizedJournal(journal, htmlFiles) {
                 if (page.id.startsWith("no-text-")) {
                     page.id = page.id.replace("no-text-", "");
                 } else {
-                    const htmlFile = `${htmlFiles}/${page.id}-${sluggify(pageKey)}.html`;
+                    const htmlFile = `${htmlFiles}/${journalKey}/${page.id}-${sluggify(pageKey)}.html`;
                     if (existsSync(htmlFile)) {
                         page.text = unifyHTML(readFileSync(htmlFile, "utf8"));
                     } else {
