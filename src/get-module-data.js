@@ -15,7 +15,13 @@ import { jsonToXliff, updateXliff } from "./helper/src/util/xliff-tool.js";
 import { readJSONFile } from "./helper/src/build/config-helper.js";
 
 // Fetch assets from current pf2 release and get zip contents
-const packs = await getZipContentFromURL(CONFIG.zipURL);
+const packSource = process.argv[2];
+
+if (!packSource) {
+    console.error("Bitte Pfad zur aktuellen json-assets.zip angeben");
+    process.exit(1);
+}
+const packs = await getZipContentFromURL(packSource);
 
 // Initialize database
 const database = {};
