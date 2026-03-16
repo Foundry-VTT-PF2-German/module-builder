@@ -54,7 +54,7 @@ for (const currentModule of CONFIG.modules) {
 
     // Process data operations for current module
     console.warn(
-        `\n---------------------------------------------\nProcessing ${currentModule.moduleId}\n---------------------------------------------`
+        `\n---------------------------------------------\nProcessing ${currentModule.moduleId}\n---------------------------------------------`,
     );
 
     // Check if dataOperations is an array
@@ -227,7 +227,7 @@ async function extractDataFromPack(sourceModule, modulePack, database, localizat
         extractedPack.packData,
         database.actors,
         database.actorCompendiums,
-        database.actorRedirects
+        database.actorRedirects,
     );
     const journalPages =
         extractedPack.packType === "adventures"
@@ -240,7 +240,7 @@ async function extractDataFromPack(sourceModule, modulePack, database, localizat
                 sourceModule.id,
                 extractedPack.packData,
                 database.mappings.actor,
-                database.items
+                database.items,
             );
         } else {
             localizationData = extractPack(
@@ -249,7 +249,7 @@ async function extractDataFromPack(sourceModule, modulePack, database, localizat
                 database.mappings.adventure,
                 database.items,
                 undefined,
-                database.actorRedirects
+                database.actorRedirects,
             );
         }
         return {
@@ -291,21 +291,29 @@ function removeJournalsPagesContent(journals) {
 
 function getActorSources(adventurePack, actorDatabase, actorCompendiums, actorRedirects) {
     const actorSources = {};
+    let actorLink = "";
     for (const adventure of adventurePack) {
         if (!adventure.actors) {
             continue;
         }
         for (const actor of adventure.actors) {
             if (
-                !(
-                    resolvePath(actor, "flags.core.sourceId").exists &&
-                    actor.flags.core.sourceId !== null &&
-                    actor.flags.core.sourceId.startsWith("Compendium.pf2e")
-                )
+                resolvePath(actor, "flags.core.sourceId").exists &&
+                actor.flags.core.sourceId !== null &&
+                actor.flags.core.sourceId.startsWith("Compendium.pf2e")
             ) {
+                actorLink = actor.flags.core.sourceId;
+            }
+            if (
+                resolvePath(actor, "_stats.compendiumSource").exists &&
+                actor._stats.compendiumSource !== null &&
+                actor._stats.compendiumSource.startsWith("Compendium.pf2e")
+            ) {
+                actorLink = actor._stats.compendiumSource;
+            }
+            if (actorLink === "") {
                 continue;
             }
-            let actorLink = actor.flags.core.sourceId;
 
             // Handle actor Redirects
             for (const actorRedirect of actorRedirects) {
@@ -411,7 +419,7 @@ function extractAdventuresJournalPages(adventures, htmlModifications) {
                     ].forEach((htmlMod) => {
                         if (!page.text.content.includes(htmlMod.base)) {
                             console.warn(
-                                `  - HTML modification: The following text was not found in ${page._id}-${page.name}\n${htmlMod.base}`
+                                `  - HTML modification: The following text was not found in ${page._id}-${page.name}\n${htmlMod.base}`,
                             );
                         } else {
                             journalPage = journalPage.replace(htmlMod.base, htmlMod.mod);
